@@ -10,7 +10,7 @@ function App() {
     setLoading(true);
     setSummary("");
     try {
-      const response = await fetch("http://localhost:3001/summarize", {
+      const response = await fetch("https://ai-summarizer-backend-pxyg.onrender.com/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),

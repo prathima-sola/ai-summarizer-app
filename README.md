@@ -39,7 +39,7 @@ The frontend runs on Vercel. The Express API runs on Render. Docker Compose runs
 - The server checks cited pages and quotations against the source before it saves AI output.
 - Row-level security scopes documents, pages, briefs, conversations, messages, and jobs to their owners.
 - Private Storage uses user-scoped paths and one-hour signed preview URLs.
-- A polling worker moves parsing, embedding, and document summaries outside API request lifecycles.
+- A polling worker moves parsing, embedding, and document summaries outside API request lifecycles. It can run as a dedicated process or inside the API container for free-tier deployments.
 - The API validates request size and options before it calls the model provider.
 - The server returns safe client errors and logs internal provider details with a request ID.
 - The frontend uses a 65-second timeout and preserves user input after errors.
@@ -138,6 +138,7 @@ docker compose --profile documents up --build
 | `SUPABASE_URL` | Workspace | Connects the API and worker to Supabase |
 | `SUPABASE_PUBLISHABLE_KEY` | Workspace | Lets the API validate user sessions |
 | `SUPABASE_SERVICE_ROLE_KEY` | Workspace | Lets the trusted worker process owned documents |
+| `RUN_DOCUMENT_WORKER` | No | Runs the queue processor inside the API container when set to `true` |
 | `WORKER_POLL_INTERVAL_MS` | No | Controls how often an idle worker checks the queue |
 
 ## API

@@ -58,4 +58,4 @@ The model returns structured claims, page numbers, and quotations through forced
 
 ## Worker deployment
 
-The API and document worker use the same backend image. The API handles authenticated requests. The worker claims jobs with a service-role-only Postgres function and processes parsing, bounded embedding batches, and cited brief generation outside the request lifecycle.
+The API and document worker use the same backend image. The API handles authenticated requests. The worker claims jobs with a service-role-only Postgres function and processes parsing, bounded embedding batches, and cited brief generation outside the request lifecycle. Production platforms can run the worker as a dedicated process. Free-tier deployments can set `RUN_DOCUMENT_WORKER=true` to run the same queue processor inside the API container.

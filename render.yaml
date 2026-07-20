@@ -1,7 +1,8 @@
 services:
   - type: web
-    name: briefly-api
+    name: ai-summarizer-backend
     runtime: docker
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /health
@@ -16,21 +17,9 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
-      - key: NODE_VERSION
-        value: 24
-
-  - type: worker
-    name: briefly-document-worker
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    dockerCommand: npm run worker
-    envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+      - key: RUN_DOCUMENT_WORKER
+        value: true
       - key: WORKER_POLL_INTERVAL_MS
         value: 2000
+      - key: NODE_VERSION
+        value: 24

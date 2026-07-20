@@ -1,53 +1,32 @@
 const dotenv = require('dotenv');
+
 dotenv.config({ path: '.env' });
-const express = require('express');
-const cors = require('cors');
-const Anthropic = require('@anthropic-ai/sdk');
-const rateLimit = require('express-rate-limit');
 
-const app = express();
-const anthropic = new Anthropic();
+const { createApp } = require('./src/app');
+const { createRequireAuth } = require('./src/auth');
+const { createDocumentAI } = require('./src/documents/document-ai');
+const { createDocumentService } = require('./src/documents/document-service');
+const { createAnthropicSummarizer } = require('./src/summarizer');
+const { createSupabaseAdmin } = require('./src/supabase');
 
-app.use(cors());
-app.use(express.json());
+const port = Number(process.env.PORT || 3001);
+const summarize = createAnthropicSummarizer();
+const supabaseAdmin = createSupabaseAdmin();
+const requireAuth = createRequireAuth(supabaseAdmin);
+const documentAI = createDocumentAI(supabaseAdmin);
+const documentService = createDocumentService(supabaseAdmin, {
+  generateSummaryJob: documentAI?.generateSummaryJob,
+});
+const app = createApp({ summarize, requireAuth, documentService, documentAI });
 
-// Rate limiter — max 10 requests per 15 minutes per IP
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    error: 'Too many requests. Please wait 15 minutes before trying again.'
-  }
+const server = app.listen(port, () => {
+  console.log(`Briefly API listening on port ${port}`);
 });
 
-app.use('/summarize', limiter);
+const shutdown = (signal) => {
+  console.log(`${signal} received. Closing HTTP server.`);
+  server.close(() => process.exit(0));
+};
 
-app.post('/summarize', async (req, res) => {
-  const { text } = req.body;
-
-  // Text length limit
-  if (!text || text.trim().length === 0) {
-    return res.status(400).json({ error: 'Please provide some text to summarize.' });
-  }
-  if (text.length > 5000) {
-    return res.status(400).json({ error: 'Text too long. Maximum 5000 characters allowed.' });
-  }
-
-  try {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: `Please summarize the following text in 5 clear bullet points:\n\n${text}`
-      }]
-    });
-    res.json({ summary: message.content[0].text });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.listen(3001, () => {
-  console.log('Server running on port 3001');
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

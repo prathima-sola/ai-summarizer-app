@@ -1,20 +1,28 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "API for configurable, source-grounded text briefs.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "worker": "node worker.js",
+    "test": "node --test"
   },
   "keywords": [],
-  "author": "",
+  "engines": {
+    "node": ">=24"
+  },
+  "author": "Prathima Sola",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
+    "@supabase/supabase-js": "^2.110.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.5.2"
+    "express-rate-limit": "^8.5.2",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^6.1.200"
   }
 }

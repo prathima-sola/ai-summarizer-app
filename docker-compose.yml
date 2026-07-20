@@ -1,15 +1,32 @@
-version: '3'
 services:
   backend:
     build: ./backend
-    ports:
-      - "3001:3001"
     env_file:
       - ./backend/.env
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build: ./backend
+    command: ["npm", "run", "worker"]
+    env_file:
+      - ./backend/.env
+    profiles: ["documents"]
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-}
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy

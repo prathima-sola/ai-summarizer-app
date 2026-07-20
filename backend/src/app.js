@@ -1,0 +1,212 @@
+const crypto = require('node:crypto');
+const express = require('express');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+
+const MODES = new Set(['executive', 'key-points', 'study-notes', 'action-items']);
+const LENGTHS = new Set(['concise', 'balanced', 'detailed']);
+const AUDIENCES = new Set(['general', 'beginner', 'expert']);
+const MAX_TEXT_LENGTH = 20_000;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateDocumentSummaryOptions(body = {}) {
+  const mode = body.mode || 'executive';
+  const detail = body.detail || 'balanced';
+  const audience = body.audience || 'general';
+  if (!MODES.has(mode)) return { error: 'Choose a supported brief format.' };
+  if (!LENGTHS.has(detail)) return { error: 'Choose a supported detail level.' };
+  if (!AUDIENCES.has(audience)) return { error: 'Choose a supported audience.' };
+  return { value: { mode, detail, audience } };
+}
+
+function parseAllowedOrigins(value) {
+  const defaults = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://ai-summarizer-app-zeta.vercel.app',
+  ];
+
+  return new Set(
+    (value ? value.split(',') : defaults)
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+}
+
+function validateSummaryRequest(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'Send a JSON object with text and summary options.' };
+  }
+
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  const mode = body.mode || 'executive';
+  const length = body.length || 'balanced';
+  const audience = body.audience || 'general';
+
+  if (!text) return { error: 'Add text before generating a brief.' };
+  if (text.length > MAX_TEXT_LENGTH) {
+    return { error: `Keep the source under ${MAX_TEXT_LENGTH.toLocaleString('en-US')} characters.` };
+  }
+  if (!MODES.has(mode)) return { error: 'Choose a supported brief format.' };
+  if (!LENGTHS.has(length)) return { error: 'Choose a supported detail level.' };
+  if (!AUDIENCES.has(audience)) return { error: 'Choose a supported audience.' };
+
+  return { value: { text, mode, length, audience } };
+}
+
+function createApp({ summarize, requireAuth, documentService, documentAI, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
+  if (typeof summarize !== 'function') {
+    throw new TypeError('createApp requires a summarize function.');
+  }
+
+  const app = express();
+  const origins = parseAllowedOrigins(allowedOrigins);
+
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
+  app.use((req, res, next) => {
+    req.requestId = req.get('x-request-id') || crypto.randomUUID();
+    res.set('x-request-id', req.requestId);
+    res.set('cache-control', 'no-store');
+    next();
+  });
+  app.use(cors({
+    origin(origin, callback) {
+      if (!origin || origins.has(origin)) return callback(null, true);
+      return callback(new Error('Origin not allowed'));
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
+  }));
+  app.use(express.json({ limit: '128kb' }));
+
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: Number(process.env.RATE_LIMIT_MAX || 20),
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: { error: 'You reached the preview limit. Try again in 15 minutes.' },
+  });
+
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', service: 'briefly-api' });
+  });
+
+  const handleSummary = async (req, res, next) => {
+    const validation = validateSummaryRequest(req.body);
+    if (validation.error) return res.status(400).json({ error: validation.error });
+
+    try {
+      const summary = await summarize(validation.value);
+      return res.status(201).json({
+        summary,
+        meta: {
+          ...validation.value,
+          text: undefined,
+          characterCount: validation.value.text.length,
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      error.requestId = req.requestId;
+      return next(error);
+    }
+  };
+
+  app.post('/api/summaries', limiter, handleSummary);
+  app.post('/summarize', limiter, handleSummary);
+
+  if (requireAuth) {
+    app.post('/api/documents/:documentId/ingest', limiter, requireAuth, async (req, res, next) => {
+      if (!documentService) {
+        return res.status(503).json({ error: 'The document workspace has not been configured.' });
+      }
+      if (!UUID_PATTERN.test(req.params.documentId)) {
+        return res.status(400).json({ error: 'Provide a valid document ID.' });
+      }
+
+      try {
+        const result = await documentService.enqueue({
+          documentId: req.params.documentId,
+          userId: req.user.id,
+        });
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        return res.status(result.status).json({ job: result.job, duplicate: result.duplicate });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.post('/api/documents/:documentId/summaries', limiter, requireAuth, async (req, res, next) => {
+      if (!documentAI) return res.status(503).json({ error: 'Document AI has not been configured.' });
+      if (!UUID_PATTERN.test(req.params.documentId)) return res.status(400).json({ error: 'Provide a valid document ID.' });
+      const validation = validateDocumentSummaryOptions(req.body);
+      if (validation.error) return res.status(400).json({ error: validation.error });
+      try {
+        const result = await documentAI.enqueueSummary({
+          documentId: req.params.documentId,
+          userId: req.user.id,
+          options: validation.value,
+        });
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        return res.status(result.status).json({ job: result.job });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.post('/api/documents/:documentId/questions', limiter, requireAuth, async (req, res, next) => {
+      if (!documentAI) return res.status(503).json({ error: 'Document AI has not been configured.' });
+      if (!UUID_PATTERN.test(req.params.documentId)) return res.status(400).json({ error: 'Provide a valid document ID.' });
+      const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
+      if (question.length < 3 || question.length > 2_000) {
+        return res.status(400).json({ error: 'Ask a question between 3 and 2,000 characters.' });
+      }
+      if (req.body.conversationId && !UUID_PATTERN.test(req.body.conversationId)) {
+        return res.status(400).json({ error: 'Provide a valid conversation ID.' });
+      }
+      try {
+        const result = await documentAI.answerQuestion({
+          documentId: req.params.documentId,
+          userId: req.user.id,
+          question,
+          conversationId: req.body.conversationId,
+        });
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        return res.status(result.status).json({ conversationId: result.conversationId, answer: result.answer });
+      } catch (error) {
+        return next(error);
+      }
+    });
+  }
+
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Route not found.' });
+  });
+
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+
+    const status = error.type === 'entity.too.large' ? 413 : 500;
+    const message = status === 413
+      ? 'The request is too large.'
+      : 'The request could not be completed. Try again.';
+
+    console.error(JSON.stringify({
+      level: 'error',
+      requestId: req.requestId,
+      message: error.message,
+    }));
+
+    return res.status(status).json({ error: message, requestId: req.requestId });
+  });
+
+  return app;
+}
+
+module.exports = {
+  MAX_TEXT_LENGTH,
+  createApp,
+  validateSummaryRequest,
+  validateDocumentSummaryOptions,
+};

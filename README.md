@@ -1,96 +1,183 @@
-# AI Text Summarizer
+# Briefly
 
-A full-stack summarization app with a React frontend, Node.js/Express backend, Claude API call, Docker setup, and GitHub Actions checks.
+Briefly turns dense text and private documents into structured, source-grounded reading briefs. Users can upload files, return to saved work, verify claims against source pages, and ask questions whose answers include checked citations.
 
-Live app: https://ai-summarizer-app-zeta.vercel.app
+Live preview: https://ai-summarizer-app-zeta.vercel.app
 
-![Live app screenshot](docs/screenshots/live-app.png)
+## Product workflow
+
+1. Add a report, article, meeting transcript, or technical note.
+2. Choose an executive brief, key points, study notes, or action items.
+3. Set the detail level and reader expertise.
+4. Generate, review, copy, download, or revisit the brief.
+
+The public text preview does not require an account. It supports source text up to 20,000 characters and stores recent results only in browser memory. The authenticated workspace accepts private PDF, DOCX, Markdown, and text files up to 15 MB.
 
 ## Architecture
 
 ```mermaid
-flowchart TD
-    U["User pastes text"] --> F["React frontend on Vercel"]
-    F --> B["Express /summarize API on Render"]
-    B --> V["Input validation"]
-    V --> L["Per-IP rate limit"]
-    L --> C["Anthropic Claude API"]
-    C --> B
-    B --> F
+flowchart LR
+    U["Reader"] --> F["React and TypeScript client"]
+    F --> S["Supabase Auth, Postgres, and private Storage"]
+    F -->|"User JWT"| A["Express API"]
+    A --> Q["Durable processing jobs"]
+    W["Background worker"] --> Q
+    W --> D["Page parser and chunker"]
+    W --> E["Supabase Edge embeddings"]
+    W --> C["Anthropic cited output"]
+    D --> S
+    E --> S
+    C --> S
 ```
 
-## Proof points
+The frontend runs on Vercel. The Express API runs on Render. Docker Compose runs the same split locally.
 
-| Area | Evidence |
+## Engineering decisions
+
+- The API accepts explicit mode, length, and audience values instead of arbitrary prompt text.
+- The prompt treats source material as untrusted content and instructs the model not to follow embedded instructions.
+- The server checks cited pages and quotations against the source before it saves AI output.
+- Row-level security scopes documents, pages, briefs, conversations, messages, and jobs to their owners.
+- Private Storage uses user-scoped paths and one-hour signed preview URLs.
+- A polling worker moves parsing, embedding, and document summaries outside API request lifecycles.
+- The API validates request size and options before it calls the model provider.
+- The server returns safe client errors and logs internal provider details with a request ID.
+- The frontend uses a 65-second timeout and preserves user input after errors.
+- CI runs backend integration tests, frontend component tests, TypeScript checks, and a production build.
+- Dependabot checks application packages and GitHub Actions every month.
+
+## Stack
+
+| Layer | Technology |
 | --- | --- |
-| Full-stack split | React frontend and Express backend run as separate services |
-| API protection | Empty input rejection, 5,000-character cap, per-IP rate limits |
-| Deployment | Frontend on Vercel, backend on Render |
-| Container setup | Dockerfiles plus `docker-compose.yml` |
-| CI | GitHub Actions installs dependencies and checks backend/frontend startup/build paths |
+| Client | React 19, TypeScript, Vite |
+| API | Node.js 24, Express 5 |
+| AI provider | Anthropic Messages API |
+| Auth, database, storage | Supabase Auth, Postgres, pgvector, Storage |
+| Embeddings | Supabase Edge Runtime `gte-small` |
+| Tests | Node test runner, Vitest, Testing Library |
+| Delivery | Docker, GitHub Actions, Vercel, Render |
 
-## Tech stack
+## Local setup
 
-- React
-- Node.js, Express
-- Anthropic Claude API
-- Docker, Docker Compose
-- GitHub Actions
-- Vercel, Render
+### Requirements
 
-## Setup
+- Node.js 24 LTS
+- An Anthropic API key
+- A Supabase project or the Supabase CLI and Docker Desktop
+
+### Run without Docker
 
 ```bash
-git clone https://github.com/prathima-sola/ai-summarizer-app
+git clone https://github.com/prathima-sola/ai-summarizer-app.git
 cd ai-summarizer-app
 cp backend/.env.example backend/.env
-docker-compose up --build
 ```
 
-Frontend: `http://localhost:3000`
-Backend: `http://localhost:3001`
+Add `ANTHROPIC_API_KEY` to `backend/.env`.
 
-## Environment
+Create the frontend environment file.
 
 ```bash
-ANTHROPIC_API_KEY=
+cp frontend/.env.example frontend/.env.local
 ```
 
-Store the key in `backend/.env`. Do not expose it in the frontend.
+Add the Supabase project URL and publishable key to `frontend/.env.local`. Add the project URL, publishable key, and service-role key to `backend/.env`.
 
-## Test commands
+Apply the database migration and deploy both embedding functions.
+
+```bash
+npx supabase login
+npx supabase link --project-ref your-project-ref
+npx supabase db push
+npx supabase functions deploy embed-document
+npx supabase functions deploy search-document
+```
+
+```bash
+cd backend
+npm ci
+npm start
+```
+
+Open a second terminal for document jobs.
+
+```bash
+cd backend
+npm run worker
+```
+
+Open a third terminal.
 
 ```bash
 cd frontend
-npm install
-npm run build
-
-cd ../backend
-npm install
-node -e "require('./server.js')"
+npm ci
+npm run dev
 ```
 
-The backend currently has a startup check rather than a full unit test suite.
+Open `http://localhost:3000`.
 
-## Deployment notes
+### Run with Docker
 
-- Vercel hosts the React frontend.
-- Render hosts the Express backend.
-- The backend reads `ANTHROPIC_API_KEY` from environment variables.
-- `docker-compose.yml` runs both services locally for a closer production match than plain `npm start`.
+```bash
+docker compose --profile documents up --build
+```
 
-## API behavior
+## Environment variables
 
-`POST /summarize`
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | Yes | Authenticates model requests |
+| `ANTHROPIC_MODEL` | No | Overrides the configured model |
+| `ALLOWED_ORIGINS` | No | Defines comma-separated browser origins |
+| `RATE_LIMIT_MAX` | No | Sets requests per 15-minute window |
+| `PORT` | No | Sets the API port, which defaults to 3001 |
+| `VITE_API_URL` | No | Overrides the frontend API base URL at build time |
+| `VITE_SUPABASE_URL` | Workspace | Connects the browser to Supabase |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Workspace | Authenticates public browser requests that RLS checks |
+| `SUPABASE_URL` | Workspace | Connects the API and worker to Supabase |
+| `SUPABASE_PUBLISHABLE_KEY` | Workspace | Lets the API validate user sessions |
+| `SUPABASE_SERVICE_ROLE_KEY` | Workspace | Lets the trusted worker process owned documents |
+| `WORKER_POLL_INTERVAL_MS` | No | Controls how often an idle worker checks the queue |
+
+## API
+
+### `POST /api/summaries`
 
 ```json
 {
-  "text": "Text to summarize"
+  "text": "Source text",
+  "mode": "executive",
+  "length": "balanced",
+  "audience": "general"
 }
 ```
 
-Validation:
+Supported modes include `executive`, `key-points`, `study-notes`, and `action-items`.
 
-- Rejects empty text.
-- Rejects text longer than 5,000 characters.
-- Limits repeated requests from the same IP.
+### `GET /health`
+
+The health endpoint returns the API status without calling the AI provider.
+
+### Authenticated document routes
+
+- `POST /api/documents/:documentId/ingest` queues parsing and indexing.
+- `POST /api/documents/:documentId/summaries` queues a structured cited brief.
+- `POST /api/documents/:documentId/questions` returns and saves a source-grounded answer.
+
+Each document route requires `Authorization: Bearer <user-jwt>` and verifies document ownership.
+
+## Verification
+
+```bash
+cd backend && npm test
+cd ../frontend && npm test && npm run build
+```
+
+## Delivery roadmap
+
+- Phase 1 establishes a reliable text workflow, typed frontend, hardened API, tests, CI, and a production interface.
+- Phase 2 delivers file ingestion, background jobs, authentication, durable workspaces, verified page citations, and document Q&A.
+- Phase 3 adds OCR, multi-document comparison, quality evaluations, cost telemetry, shareable briefs, and deeper observability.
+
+See [docs/roadmap.md](docs/roadmap.md) for acceptance criteria and implementation order.

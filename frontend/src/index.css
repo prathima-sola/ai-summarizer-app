@@ -1,13 +1,30 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap');
+
+:root {
+  --accent: #597e62;
+  --accent-dark: #3a6348;
+  --accent-soft: #91ae94;
+  --accent-wash: #edf4ec;
+  --canvas: #f8f9f6;
+  --ink: #1c1f1b;
+  --line: #dfe2dc;
+  --line-strong: #c9cdc5;
+  --muted: #626860;
+  --muted-light: #858b82;
+  --surface: #fdfefb;
+  --success: #4f8460;
+  --warning: #9a5b28;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--canvas); margin: 0; min-width: 320px; }
+button, select, textarea { font-family: inherit; }
+button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid rgba(58, 99, 72, .3); outline-offset: 3px; }
+::selection { background: #c9ddca; }

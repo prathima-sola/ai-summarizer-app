@@ -72,10 +72,11 @@ export function ComparePage() {
   useEffect(() => { loadPage(); }, [loadPage]);
 
   useEffect(() => {
-    if (!supabase || !comparisonJob || !['queued', 'processing'].includes(comparisonJob.status)) return;
+    if (!supabase || !comparisonJob) return;
 
     const client = supabase;
     let cancelled = false;
+    let interval: number | undefined;
     const pollJob = async () => {
       const { data, error: jobError } = await client
         .from('processing_jobs')
@@ -92,11 +93,13 @@ export function ComparePage() {
       const job = data as ProcessingJobRow;
       setComparisonJob(job);
       if (job.status === 'failed') {
+        if (interval) window.clearInterval(interval);
         setError(job.error_message || 'Briefly could not compare these documents.');
         setComparing(false);
         return;
       }
       if (job.status !== 'completed') return;
+      if (interval) window.clearInterval(interval);
 
       const savedComparisonId = typeof job.payload?.comparisonId === 'string' ? job.payload.comparisonId : '';
       if (!savedComparisonId) {
@@ -126,12 +129,12 @@ export function ComparePage() {
     };
 
     pollJob();
-    const interval = window.setInterval(pollJob, 3_000);
+    interval = window.setInterval(pollJob, 3_000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [comparisonJob?.id, comparisonJob?.status, navigate]);
+  }, [comparisonJob?.id, navigate]);
 
   const documentMap = useMemo(() => new Map(documents.map((document) => [document.id, document])), [documents]);
   const baseDocument = documentMap.get(comparison?.base_document_id || baseDocumentId);

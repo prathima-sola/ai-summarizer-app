@@ -61,8 +61,8 @@ Acceptance criteria:
 
 - [x] Users can compare multiple document versions.
 - [x] Users can create read-only share links.
-- [ ] An evaluation suite measures faithfulness, citation correctness, coverage, latency, and cost.
-- [ ] The system records prompt versions and model metadata.
-- [ ] Dashboards report failures, latency, token usage, and cost.
+- [x] An evaluation suite measures faithfulness, citation correctness, coverage, latency, and cost.
+- [x] The system records prompt versions and model metadata.
+- [x] Dashboards report failures, latency, token usage, and cost.
 - [ ] End-to-end tests cover upload through export and deletion.
 - [ ] OCR extracts text from fully scanned PDFs.

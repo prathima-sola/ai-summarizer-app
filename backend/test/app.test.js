@@ -224,3 +224,26 @@ test('revokes only an authenticated owner share link', async () => {
   assert.equal(received.userId, '11111111-1111-4111-8111-111111111111');
   assert.equal(received.shareId, '44444444-4444-4444-8444-444444444444');
 });
+
+test('returns an authenticated quality overview', async () => {
+  let received;
+  const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
+  const evaluationService = { async overview(input) { received = input; return { artifacts: 4, evaluated: 3, faithfulnessScore: 92 }; } };
+  const baseUrl = await startApp(undefined, { requireAuth, evaluationService });
+  const response = await fetch(`${baseUrl}/api/quality`, { headers: { authorization: 'Bearer test-token' } });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(received.userId, '11111111-1111-4111-8111-111111111111');
+  assert.equal(body.overview.faithfulnessScore, 92);
+});
+
+test('runs evaluations only for an authenticated workspace', async () => {
+  let received;
+  const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
+  const evaluationService = { async run(input) { received = input; return { status: 200, evaluated: 5 }; } };
+  const baseUrl = await startApp(undefined, { requireAuth, evaluationService });
+  const response = await fetch(`${baseUrl}/api/evaluations/run`, { method: 'POST', headers: { authorization: 'Bearer test-token' } });
+  assert.equal(response.status, 200);
+  assert.equal(received.userId, '11111111-1111-4111-8111-111111111111');
+  assert.equal((await response.json()).evaluated, 5);
+});

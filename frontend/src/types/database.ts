@@ -158,6 +158,46 @@ export type PublicSharePayload = {
   });
 };
 
+export type EvaluationResultRow = {
+  id: string;
+  user_id: string;
+  artifact_type: 'summary' | 'comparison';
+  summary_id: string | null;
+  comparison_id: string | null;
+  faithfulness_score: number;
+  citation_correctness_score: number;
+  coverage_score: number;
+  passed: boolean;
+  details: Record<string, unknown>;
+  source_model: string;
+  prompt_version: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  latency_ms: number | null;
+  estimated_cost_usd: number | null;
+  pricing_version: string;
+  evaluator_version: string;
+  created_at: string;
+};
+
+export type QualityOverview = {
+  artifacts: number;
+  evaluated: number;
+  passed: number;
+  failedJobs: number;
+  faithfulnessScore: number | null;
+  citationCorrectnessScore: number | null;
+  coverageScore: number | null;
+  averageLatencyMs: number | null;
+  p95LatencyMs: number | null;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  evaluatorVersion: string;
+  pricingVersion: string;
+  recent: EvaluationResultRow[];
+};
+
 type Table<Row, Insert = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
@@ -192,6 +232,7 @@ export type Database = {
       messages: Table<MessageRow>;
       processing_jobs: Table<ProcessingJobRow>;
       comparisons: Table<ComparisonRow>;
+      evaluation_results: Table<EvaluationResultRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

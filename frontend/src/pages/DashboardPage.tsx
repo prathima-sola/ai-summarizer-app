@@ -62,6 +62,7 @@ export function DashboardPage() {
             <p>Upload a source, generate a cited brief, and ask questions without losing the connection to the original pages.</p>
           </div>
           <div className="dashboard-actions">
+            <Link className="quality-link" to="/app/quality">View quality metrics</Link>
             {readyDocumentCount >= 2 && <Link className="compare-link" to="/app/compare">Compare two documents</Link>}
             {session && <DocumentUploader session={session} onUploaded={onUploaded} />}
           </div>

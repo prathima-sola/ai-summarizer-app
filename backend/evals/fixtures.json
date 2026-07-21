@@ -1,0 +1,38 @@
+[
+  {
+    "name": "grounded-summary",
+    "type": "summary",
+    "pages": [{ "page_number": 1, "content": "The steering group approved a $120,000 budget and set the launch target for November." }],
+    "artifact": {
+      "citations": [{ "page_number": 1, "quote": "approved a $120,000 budget and set the launch target for November" }],
+      "structured_content": {
+        "sections": [{ "heading": "Decision", "points": [{ "text": "The launch target is November with a budget of $120,000.", "page_numbers": [1] }] }]
+      }
+    },
+    "expected": { "faithfulnessScore": 100, "citationCorrectnessScore": 100, "coverageScore": 100, "passed": true }
+  },
+  {
+    "name": "unsupported-numbers",
+    "type": "summary",
+    "pages": [{ "page_number": 1, "content": "The steering group approved a $120,000 budget and set the launch target for November." }],
+    "artifact": {
+      "citations": [{ "page_number": 1, "quote": "approved a $120,000 budget and set the launch target for November" }],
+      "structured_content": {
+        "sections": [{ "heading": "Decision", "points": [{ "text": "The launch target is December with a budget of $200,000.", "page_numbers": [1] }] }]
+      }
+    },
+    "expected": { "faithfulnessScore": 0, "citationCorrectnessScore": 100, "coverageScore": 100, "passed": false }
+  },
+  {
+    "name": "invalid-citation-and-page",
+    "type": "summary",
+    "pages": [{ "page_number": 1, "content": "The launch target is November." }],
+    "artifact": {
+      "citations": [{ "page_number": 2, "quote": "The launch target is December." }],
+      "structured_content": {
+        "sections": [{ "heading": "Decision", "points": [{ "text": "The launch target is December.", "page_numbers": [2] }] }]
+      }
+    },
+    "expected": { "faithfulnessScore": 0, "citationCorrectnessScore": 0, "coverageScore": 0, "passed": false }
+  }
+]

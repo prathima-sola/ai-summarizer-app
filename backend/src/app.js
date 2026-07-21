@@ -54,7 +54,7 @@ function validateSummaryRequest(body) {
   return { value: { text, mode, length, audience } };
 }
 
-function createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
+function createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService, evaluationService, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
   if (typeof summarize !== 'function') {
     throw new TypeError('createApp requires a summarize function.');
   }
@@ -245,6 +245,26 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
         const result = await shareService.revoke({ shareId: req.params.shareId, userId: req.user.id });
         if (result.error) return res.status(result.status).json({ error: result.error });
         return res.status(204).end();
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.get('/api/quality', limiter, requireAuth, async (req, res, next) => {
+      if (!evaluationService) return res.status(503).json({ error: 'Quality evaluation has not been configured.' });
+      try {
+        const overview = await evaluationService.overview({ userId: req.user.id });
+        return res.json({ overview });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.post('/api/evaluations/run', limiter, requireAuth, async (req, res, next) => {
+      if (!evaluationService) return res.status(503).json({ error: 'Quality evaluation has not been configured.' });
+      try {
+        const result = await evaluationService.run({ userId: req.user.id });
+        return res.status(result.status).json({ evaluated: result.evaluated });
       } catch (error) {
         return next(error);
       }

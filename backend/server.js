@@ -19,6 +19,7 @@ const documentAI = createDocumentAI(supabaseAdmin);
 const comparisonAI = createComparisonAI(supabaseAdmin);
 const documentService = createDocumentService(supabaseAdmin, {
   generateSummaryJob: documentAI?.generateSummaryJob,
+  generateComparisonJob: comparisonAI?.generateComparisonJob,
 });
 const app = createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI });
 const documentWorker = process.env.RUN_DOCUMENT_WORKER === 'true' && documentService

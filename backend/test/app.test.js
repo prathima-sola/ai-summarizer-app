@@ -134,16 +134,16 @@ test('queues ingestion only for an authenticated document owner', async () => {
   assert.equal(body.job.status, 'queued');
 });
 
-test('creates a comparison for two authenticated document IDs', async () => {
+test('queues a comparison for two authenticated document IDs', async () => {
   let received;
   const requireAuth = (req, res, next) => {
     req.user = { id: '11111111-1111-4111-8111-111111111111' };
     next();
   };
   const comparisonAI = {
-    async compareDocuments(input) {
+    async enqueueComparison(input) {
       received = input;
-      return { status: 201, comparison: { id: 'comparison-1', title: 'Version changes' } };
+      return { status: 202, job: { id: 'comparison-job-1', status: 'queued' } };
     },
   };
   const baseUrl = await startApp(undefined, { requireAuth, comparisonAI });
@@ -155,14 +155,14 @@ test('creates a comparison for two authenticated document IDs', async () => {
       targetDocumentId: '33333333-3333-4333-8333-333333333333',
     }),
   });
-  assert.equal(response.status, 201);
+  assert.equal(response.status, 202);
   assert.equal(received.userId, '11111111-1111-4111-8111-111111111111');
-  assert.equal((await response.json()).comparison.title, 'Version changes');
+  assert.equal((await response.json()).job.status, 'queued');
 });
 
 test('rejects comparing a document with itself', async () => {
   const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
-  const comparisonAI = { async compareDocuments() { throw new Error('must not run'); } };
+  const comparisonAI = { async enqueueComparison() { throw new Error('must not run'); } };
   const baseUrl = await startApp(undefined, { requireAuth, comparisonAI });
   const documentId = '22222222-2222-4222-8222-222222222222';
   const response = await fetch(`${baseUrl}/api/comparisons`, {

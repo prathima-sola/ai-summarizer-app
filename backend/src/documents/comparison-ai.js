@@ -76,21 +76,52 @@ function createComparisonAI(supabaseAdmin, { client } = {}) {
   const anthropic = client || new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 
-  async function compareDocuments({ baseDocumentId, targetDocumentId, userId }) {
+  async function getOwnedDocuments(baseDocumentId, targetDocumentId, userId) {
     const { data: documents, error: documentsError } = await supabaseAdmin
       .from('documents')
       .select('*')
       .eq('user_id', userId)
       .in('id', [baseDocumentId, targetDocumentId]);
     if (documentsError) throw documentsError;
-    if (documents?.length !== 2) return { status: 404, error: 'One or both documents could not be found.' };
+    if (documents?.length !== 2) return { error: 'One or both documents could not be found.' };
 
     const baseDocument = documents.find((document) => document.id === baseDocumentId);
     const targetDocument = documents.find((document) => document.id === targetDocumentId);
-    if (!baseDocument || !targetDocument) return { status: 404, error: 'One or both documents could not be found.' };
+    if (!baseDocument || !targetDocument) return { error: 'One or both documents could not be found.' };
     if (baseDocument.status !== 'ready' || targetDocument.status !== 'ready') {
-      return { status: 409, error: 'Wait for both documents to finish processing.' };
+      return { error: 'Wait for both documents to finish processing.' };
     }
+    return { baseDocument, targetDocument };
+  }
+
+  async function enqueueComparison({ baseDocumentId, targetDocumentId, userId }) {
+    const owned = await getOwnedDocuments(baseDocumentId, targetDocumentId, userId);
+    if (owned.error) return { status: owned.error.startsWith('One or both') ? 404 : 409, error: owned.error };
+
+    const { data: activeJobs, error: activeJobsError } = await supabaseAdmin
+      .from('processing_jobs')
+      .select('id, status, progress, payload')
+      .eq('document_id', baseDocumentId)
+      .eq('job_type', 'compare')
+      .in('status', ['queued', 'processing']);
+    if (activeJobsError) throw activeJobsError;
+    const activeJob = activeJobs?.find((job) => job.payload?.targetDocumentId === targetDocumentId);
+    if (activeJob) return { status: 202, job: activeJob };
+
+    const { data: job, error: jobError } = await supabaseAdmin.from('processing_jobs').insert({
+      document_id: baseDocumentId,
+      user_id: userId,
+      job_type: 'compare',
+      payload: { targetDocumentId },
+    }).select('id, document_id, user_id, job_type, status, attempts, progress, payload, error_message, started_at, completed_at, created_at, updated_at').single();
+    if (jobError) throw jobError;
+    return { status: 202, job };
+  }
+
+  async function compareDocuments({ baseDocumentId, targetDocumentId, userId }) {
+    const owned = await getOwnedDocuments(baseDocumentId, targetDocumentId, userId);
+    if (owned.error) return { status: owned.error.startsWith('One or both') ? 404 : 409, error: owned.error };
+    const { baseDocument, targetDocument } = owned;
 
     const chunkResults = await Promise.all([baseDocumentId, targetDocumentId].map((documentId) => supabaseAdmin
       .from('document_chunks')
@@ -181,7 +212,24 @@ function createComparisonAI(supabaseAdmin, { client } = {}) {
     return { status: 201, comparison: savedComparison };
   }
 
-  return { compareDocuments };
+  async function generateComparisonJob(job) {
+    await supabaseAdmin.from('processing_jobs').update({ progress: 10 }).eq('id', job.id);
+    const result = await compareDocuments({
+      baseDocumentId: job.document_id,
+      targetDocumentId: job.payload?.targetDocumentId,
+      userId: job.user_id,
+    });
+    if (result.error || !result.comparison) throw new Error(result.error || 'The comparison could not be generated.');
+    await supabaseAdmin.from('processing_jobs').update({
+      status: 'completed',
+      progress: 100,
+      payload: { ...job.payload, comparisonId: result.comparison.id },
+      completed_at: new Date().toISOString(),
+      error_message: null,
+    }).eq('id', job.id);
+  }
+
+  return { compareDocuments, enqueueComparison, generateComparisonJob };
 }
 
 module.exports = {

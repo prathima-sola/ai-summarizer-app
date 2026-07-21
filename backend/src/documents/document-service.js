@@ -9,7 +9,7 @@ function batch(items, size) {
   return batches;
 }
 
-function createDocumentService(supabaseAdmin, { generateSummaryJob } = {}) {
+function createDocumentService(supabaseAdmin, { generateSummaryJob, generateComparisonJob } = {}) {
   if (!supabaseAdmin) return null;
 
   async function enqueue({ documentId, userId }) {
@@ -163,6 +163,7 @@ function createDocumentService(supabaseAdmin, { generateSummaryJob } = {}) {
       if (job.job_type === 'parse') await processParseJob(job);
       else if (job.job_type === 'embed') await processEmbeddingJob(job);
       else if (job.job_type === 'summarize' && generateSummaryJob) await generateSummaryJob(job);
+      else if (job.job_type === 'compare' && generateComparisonJob) await generateComparisonJob(job);
       else throw new Error(`Unsupported worker job type: ${job.job_type}`);
     } catch (processingError) {
       await failJob(job, processingError);

@@ -188,9 +188,9 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
       }
       if (baseDocumentId === targetDocumentId) return res.status(400).json({ error: 'Choose two different documents.' });
       try {
-        const result = await comparisonAI.compareDocuments({ baseDocumentId, targetDocumentId, userId: req.user.id });
+        const result = await comparisonAI.enqueueComparison({ baseDocumentId, targetDocumentId, userId: req.user.id });
         if (result.error) return res.status(result.status).json({ error: result.error });
-        return res.status(result.status).json({ comparison: result.comparison });
+        return res.status(result.status).json({ job: result.job });
       } catch (error) {
         return next(error);
       }

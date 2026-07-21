@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { API_URL } from '../lib/api';
 import { supabase } from '../lib/supabase';
-import type { ComparisonCitation, ComparisonRow, DocumentRow } from '../types/database';
+import type { ComparisonCitation, ComparisonRow, DocumentRow, ProcessingJobRow } from '../types/database';
 
 async function readApiResponse<T>(response: Response): Promise<T & { error?: string }> {
   if (!response.headers.get('content-type')?.includes('application/json')) return {} as T & { error?: string };
@@ -33,6 +33,7 @@ export function ComparePage() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [recentComparisons, setRecentComparisons] = useState<ComparisonRow[]>([]);
   const [comparison, setComparison] = useState<ComparisonRow | null>(null);
+  const [comparisonJob, setComparisonJob] = useState<ProcessingJobRow | null>(null);
   const [baseDocumentId, setBaseDocumentId] = useState('');
   const [targetDocumentId, setTargetDocumentId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -70,6 +71,68 @@ export function ComparePage() {
 
   useEffect(() => { loadPage(); }, [loadPage]);
 
+  useEffect(() => {
+    if (!supabase || !comparisonJob || !['queued', 'processing'].includes(comparisonJob.status)) return;
+
+    const client = supabase;
+    let cancelled = false;
+    const pollJob = async () => {
+      const { data, error: jobError } = await client
+        .from('processing_jobs')
+        .select('*')
+        .eq('id', comparisonJob.id)
+        .single();
+      if (cancelled) return;
+      if (jobError) {
+        setError('Briefly could not check the comparison progress.');
+        setComparing(false);
+        return;
+      }
+
+      const job = data as ProcessingJobRow;
+      setComparisonJob(job);
+      if (job.status === 'failed') {
+        setError(job.error_message || 'Briefly could not compare these documents.');
+        setComparing(false);
+        return;
+      }
+      if (job.status !== 'completed') return;
+
+      const savedComparisonId = typeof job.payload?.comparisonId === 'string' ? job.payload.comparisonId : '';
+      if (!savedComparisonId) {
+        setError('Briefly completed the job but could not find the saved comparison.');
+        setComparing(false);
+        return;
+      }
+      const { data: savedComparison, error: comparisonError } = await client
+        .from('comparisons')
+        .select('*')
+        .eq('id', savedComparisonId)
+        .single();
+      if (cancelled) return;
+      if (comparisonError || !savedComparison) {
+        setError('Briefly could not open the completed comparison.');
+        setComparing(false);
+        return;
+      }
+
+      const result = savedComparison as ComparisonRow;
+      setComparison(result);
+      setBaseDocumentId(result.base_document_id);
+      setTargetDocumentId(result.target_document_id);
+      setRecentComparisons((current) => [result, ...current.filter((item) => item.id !== result.id)]);
+      setComparing(false);
+      navigate(`/app/comparisons/${result.id}`, { replace: true });
+    };
+
+    pollJob();
+    const interval = window.setInterval(pollJob, 3_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [comparisonJob?.id, comparisonJob?.status, navigate]);
+
   const documentMap = useMemo(() => new Map(documents.map((document) => [document.id, document])), [documents]);
   const baseDocument = documentMap.get(comparison?.base_document_id || baseDocumentId);
   const targetDocument = documentMap.get(comparison?.target_document_id || targetDocumentId);
@@ -85,14 +148,11 @@ export function ComparePage() {
         headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ baseDocumentId, targetDocumentId }),
       });
-      const body = await readApiResponse<{ comparison?: ComparisonRow }>(response);
-      if (!response.ok || !body.comparison) throw new Error(body.error || 'Briefly could not compare these documents.');
-      setComparison(body.comparison);
-      setRecentComparisons((current) => [body.comparison!, ...current.filter((item) => item.id !== body.comparison!.id)]);
-      navigate(`/app/comparisons/${body.comparison.id}`, { replace: true });
+      const body = await readApiResponse<{ job?: ProcessingJobRow }>(response);
+      if (!response.ok || !body.job) throw new Error(body.error || 'Briefly could not compare these documents.');
+      setComparisonJob(body.job);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Briefly could not compare these documents.');
-    } finally {
       setComparing(false);
     }
   };
@@ -101,6 +161,8 @@ export function ComparePage() {
     setBaseDocumentId(targetDocumentId);
     setTargetDocumentId(baseDocumentId);
     setComparison(null);
+    setComparisonJob(null);
+    setComparing(false);
   };
 
   if (loading) return <main className="route-loader"><span /><p>Opening document comparison</p></main>;
@@ -125,10 +187,10 @@ export function ComparePage() {
         <section className="comparison-empty"><h2>Add two processed documents</h2><p>Comparison starts after both sources reach Ready.</p><Link to="/app">Upload another document</Link></section>
       ) : (
         <form className="comparison-picker" onSubmit={compare}>
-          <label>Earlier version<select aria-label="Earlier version" value={baseDocumentId} onChange={(event) => { setBaseDocumentId(event.target.value); setComparison(null); }}>{documents.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}</select></label>
+          <label>Earlier version<select aria-label="Earlier version" value={baseDocumentId} onChange={(event) => { setBaseDocumentId(event.target.value); setComparison(null); setComparisonJob(null); setComparing(false); }}>{documents.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}</select></label>
           <button className="swap-versions" type="button" onClick={swapVersions}>Swap version order</button>
-          <label>Later version<select aria-label="Later version" value={targetDocumentId} onChange={(event) => { setTargetDocumentId(event.target.value); setComparison(null); }}>{documents.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}</select></label>
-          <button className="compare-action" type="submit" disabled={comparing || baseDocumentId === targetDocumentId}>{comparing ? 'Comparing source pages' : 'Compare these versions'}</button>
+          <label>Later version<select aria-label="Later version" value={targetDocumentId} onChange={(event) => { setTargetDocumentId(event.target.value); setComparison(null); setComparisonJob(null); setComparing(false); }}>{documents.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}</select></label>
+          <button className="compare-action" type="submit" disabled={comparing || baseDocumentId === targetDocumentId}>{comparing ? `Comparing source pages · ${comparisonJob?.progress || 0}%` : 'Compare these versions'}</button>
         </form>
       )}
 

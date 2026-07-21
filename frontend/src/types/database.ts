@@ -97,7 +97,7 @@ export type ProcessingJobRow = {
   id: string;
   document_id: string;
   user_id: string;
-  job_type: 'parse' | 'embed' | 'summarize';
+  job_type: 'parse' | 'embed' | 'summarize' | 'compare';
   status: 'queued' | 'processing' | 'completed' | 'failed';
   attempts: number;
   progress: number;

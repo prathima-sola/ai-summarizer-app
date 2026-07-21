@@ -94,7 +94,7 @@ export function DashboardPage() {
                     <h3>{document.title}</h3>
                     <p>{document.page_count ? `${document.page_count} pages` : 'Page count pending'} · {(document.size_bytes / 1024 / 1024).toFixed(1)} MB{document.tags.length ? ` · ${document.tags.join(', ')}` : ''}</p>
                   </div>
-                  <span className={`status-pill ${document.status}`}>{document.status}</span>
+                  <span className={`status-pill ${document.status}`}>{document.ocr_status === 'processing' ? 'OCR' : document.status}</span>
                 </Link>
               ))}
             </div>

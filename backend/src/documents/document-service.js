@@ -53,7 +53,13 @@ function createDocumentService(supabaseAdmin, { generateSummaryJob, generateComp
     if (documentError) throw documentError;
 
     await Promise.all([
-      supabaseAdmin.from('documents').update({ status: 'processing', error_message: null }).eq('id', document.id),
+      supabaseAdmin.from('documents').update({
+        status: 'processing',
+        ocr_status: 'not_needed',
+        ocr_page_count: 0,
+        ocr_confidence: null,
+        error_message: null,
+      }).eq('id', document.id),
       supabaseAdmin.from('processing_jobs').update({ progress: 10 }).eq('id', job.id),
     ]);
 
@@ -62,7 +68,17 @@ function createDocumentService(supabaseAdmin, { generateSummaryJob, generateComp
       .download(document.storage_path);
     if (downloadError) throw downloadError;
 
-    const parsed = await parseDocument(Buffer.from(await file.arrayBuffer()), document.mime_type);
+    const parsed = await parseDocument(Buffer.from(await file.arrayBuffer()), document.mime_type, {
+      onOcrProgress: async ({ completed, total }) => {
+        const progress = 10 + Math.round((completed / Math.max(1, total)) * 30);
+        await Promise.all([
+          supabaseAdmin.from('processing_jobs').update({ progress }).eq('id', job.id),
+          completed === 0
+            ? supabaseAdmin.from('documents').update({ requires_ocr: true, ocr_status: 'processing' }).eq('id', document.id)
+            : Promise.resolve(),
+        ]);
+      },
+    });
     const chunks = chunkPages(parsed.pages);
 
     await supabaseAdmin.from('processing_jobs').update({ progress: 45 }).eq('id', job.id);
@@ -91,6 +107,9 @@ function createDocumentService(supabaseAdmin, { generateSummaryJob, generateComp
         character_count: parsed.characterCount,
         text_coverage: parsed.textCoverage,
         requires_ocr: parsed.requiresOcr,
+        ocr_status: parsed.ocrStatus,
+        ocr_page_count: parsed.ocrPageCount,
+        ocr_confidence: parsed.ocrConfidence,
         error_message: null,
       }).eq('id', document.id),
       supabaseAdmin.from('processing_jobs').update({
@@ -138,7 +157,7 @@ function createDocumentService(supabaseAdmin, { generateSummaryJob, generateComp
 
   async function failJob(job, error) {
     const safeMessage = error instanceof Error ? error.message.slice(0, 500) : 'Document processing failed.';
-    const willRetry = job.attempts < 3;
+    const willRetry = error?.retryable !== false && job.attempts < 3;
     const updates = [
       supabaseAdmin.from('processing_jobs').update({
         status: willRetry ? 'queued' : 'failed',
@@ -148,7 +167,11 @@ function createDocumentService(supabaseAdmin, { generateSummaryJob, generateComp
       }).eq('id', job.id),
     ];
     if (job.job_type === 'parse') {
-      updates.push(supabaseAdmin.from('documents').update({ status: willRetry ? 'queued' : 'failed', error_message: safeMessage }).eq('id', job.document_id));
+      updates.push(supabaseAdmin.from('documents').update({
+        status: willRetry ? 'queued' : 'failed',
+        error_message: safeMessage,
+        ...(error?.ocrStatus ? { ocr_status: error.ocrStatus, requires_ocr: true } : {}),
+      }).eq('id', job.document_id));
     }
     await Promise.all(updates);
   }

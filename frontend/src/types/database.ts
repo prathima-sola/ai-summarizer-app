@@ -1,4 +1,5 @@
 export type DocumentStatus = 'uploading' | 'queued' | 'processing' | 'ready' | 'failed';
+export type OcrStatus = 'not_needed' | 'processing' | 'completed' | 'partial' | 'failed';
 
 export type DocumentRow = {
   id: string;
@@ -13,6 +14,9 @@ export type DocumentRow = {
   character_count: number | null;
   text_coverage: number | null;
   requires_ocr: boolean;
+  ocr_status: OcrStatus;
+  ocr_page_count: number;
+  ocr_confidence: number | null;
   language: string | null;
   tags: string[];
   error_message: string | null;
@@ -210,13 +214,16 @@ export type Database = {
     Tables: {
       documents: {
         Row: DocumentRow;
-        Insert: Omit<DocumentRow, 'id' | 'status' | 'page_count' | 'character_count' | 'text_coverage' | 'requires_ocr' | 'language' | 'tags' | 'error_message' | 'created_at' | 'updated_at'> & {
+        Insert: Omit<DocumentRow, 'id' | 'status' | 'page_count' | 'character_count' | 'text_coverage' | 'requires_ocr' | 'ocr_status' | 'ocr_page_count' | 'ocr_confidence' | 'language' | 'tags' | 'error_message' | 'created_at' | 'updated_at'> & {
           id?: string;
           status?: DocumentStatus;
           page_count?: number | null;
           character_count?: number | null;
           text_coverage?: number | null;
           requires_ocr?: boolean;
+          ocr_status?: OcrStatus;
+          ocr_page_count?: number;
+          ocr_confidence?: number | null;
           language?: string | null;
           tags?: string[];
           error_message?: string | null;

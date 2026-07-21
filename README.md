@@ -12,7 +12,7 @@ Live preview: https://ai-summarizer-app-zeta.vercel.app
 4. Generate, review, copy, download, or revisit the brief.
 5. Compare an earlier and later document to review cited additions, removals, and changed claims.
 
-The public text preview does not require an account. It supports source text up to 20,000 characters and stores recent results only in browser memory. The authenticated workspace accepts private PDF, DOCX, Markdown, and text files up to 15 MB.
+The public text preview does not require an account. It supports source text up to 20,000 characters and stores recent results only in browser memory. The authenticated workspace accepts private PDF, DOCX, Markdown, and text files up to 15 MB. The worker applies local English OCR to scanned PDF pages that do not contain readable embedded text.
 
 ## Architecture
 
@@ -24,6 +24,7 @@ flowchart LR
     A --> Q["Durable processing jobs"]
     W["Background worker"] --> Q
     W --> D["Page parser and chunker"]
+    D --> O["Local PDF OCR fallback"]
     W --> E["Supabase Edge embeddings"]
     W --> C["Anthropic cited output"]
     D --> S
@@ -42,6 +43,7 @@ The frontend runs on Vercel. The Express API runs on Render. Docker Compose runs
 - Row-level security scopes documents, pages, briefs, conversations, messages, and jobs to their owners.
 - Private Storage uses user-scoped paths and one-hour signed preview URLs.
 - A polling worker moves parsing, embedding, and document summaries outside API request lifecycles. It can run as a dedicated process or inside the API container for free-tier deployments.
+- The parser runs OCR only on sparse PDF pages, preserves their original page numbers, and reports OCR coverage and mean confidence.
 - The API validates request size and options before it calls the model provider.
 - The server returns safe client errors and logs internal provider details with a request ID.
 - The frontend uses a 65-second timeout and preserves user input after errors.
@@ -142,6 +144,14 @@ docker compose --profile documents up --build
 | `SUPABASE_SERVICE_ROLE_KEY` | Workspace | Lets the trusted worker process owned documents |
 | `RUN_DOCUMENT_WORKER` | No | Runs the queue processor inside the API container when set to `true` |
 | `WORKER_POLL_INTERVAL_MS` | No | Controls how often an idle worker checks the queue |
+| `OCR_MAX_PAGES` | No | Caps OCR work per PDF, which defaults to 25 scanned pages |
+| `OCR_RENDER_SCALE` | No | Controls scanned-page rendering resolution, which defaults to 2 |
+
+### Scanned PDF support
+
+Briefly first extracts embedded PDF text because native extraction is faster and more accurate. It renders and OCRs only pages with fewer than 20 readable characters. The document workspace reports whether OCR completed, recovered only part of the PDF, or could not recover readable text.
+
+The bundled model supports printed English text. Handwriting, damaged scans, unusual fonts, and non-English documents can produce incomplete results. OCR processes at most 25 pages by default to protect the free Render worker from unbounded CPU and memory use. Set `OCR_MAX_PAGES` for a larger worker when needed.
 
 ## API
 

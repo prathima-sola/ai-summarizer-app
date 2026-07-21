@@ -31,6 +31,17 @@ function CitationButtons({ citations, onSelect }: { citations: Citation[]; onSel
   );
 }
 
+function ocrDescription(document: DocumentRow) {
+  if (document.ocr_status === 'completed') {
+    const confidence = document.ocr_confidence === null ? '' : ` · ${document.ocr_confidence}% confidence`;
+    return ` · OCR read ${document.ocr_page_count} scanned ${document.ocr_page_count === 1 ? 'page' : 'pages'}${confidence}`;
+  }
+  if (document.ocr_status === 'partial') return ` · OCR recovered ${document.ocr_page_count} pages · some pages remain unreadable`;
+  if (document.ocr_status === 'failed') return ' · OCR could not recover the scanned pages';
+  if (document.ocr_status === 'processing') return ' · reading scanned pages with OCR';
+  return document.requires_ocr ? ' · scanned pages detected' : '';
+}
+
 export function DocumentPage() {
   const { documentId = '' } = useParams();
   const [searchParams] = useSearchParams();
@@ -250,7 +261,7 @@ export function DocumentPage() {
       <header className="workspace-header">
         <div>
           <Link to="/app">← All documents</Link>
-          <span className={`status-pill ${document.status}`}>{indexJob && ['queued', 'processing'].includes(indexJob.status) ? 'indexing' : document.status}</span>
+          <span className={`status-pill ${document.status}`}>{document.ocr_status === 'processing' ? 'OCR' : indexJob && ['queued', 'processing'].includes(indexJob.status) ? 'indexing' : document.status}</span>
         </div>
         <button className="document-title-button" type="button" title="Rename or tag document" onClick={() => setEditingMetadata(true)}>{document.title}</button>
         <div className="workspace-actions"><button type="button" onClick={() => setEditingMetadata(true)}>Edit details</button><button className="danger-button" type="button" onClick={deleteDocument} disabled={deleting}>{deleting ? 'Deleting document' : 'Delete document'}</button></div>
@@ -263,7 +274,7 @@ export function DocumentPage() {
       <div className="workspace-grid">
         <section className="source-panel" aria-label="Original document">
           <div className="source-toolbar">
-            <div><span>Original source</span><small>{document.page_count || pages.length || '0'} pages{document.text_coverage !== null ? ` · ${document.text_coverage}% text coverage` : ''}{document.requires_ocr ? ' · scanned pages detected' : ''}</small></div>
+            <div><span>Original source</span><small>{document.page_count || pages.length || '0'} pages{document.text_coverage !== null ? ` · ${document.text_coverage}% text coverage` : ''}{ocrDescription(document)}</small></div>
             <div className="page-controls">
               <button type="button" onClick={() => selectSourcePage(activePage - 1)} disabled={activePage <= 1}>Previous</button>
               <span>Page {activePage}</span>
@@ -271,7 +282,7 @@ export function DocumentPage() {
             </div>
           </div>
           <div className="source-viewer">
-            {document.status !== 'ready' && <div className="source-empty"><span className="processing-ring" /><h2>Analyzing your source</h2><p>This page updates when text extraction finishes.</p></div>}
+            {document.status !== 'ready' && <div className="source-empty"><span className="processing-ring" /><h2>{document.ocr_status === 'processing' ? 'Reading scanned pages with OCR' : 'Analyzing your source'}</h2><p>{document.ocr_status === 'processing' ? 'Printed text will remain connected to its original page.' : 'This page updates when text extraction finishes.'}</p></div>}
             {document.status === 'ready' && isPdf && signedUrl && <iframe key={activePage} title={`${document.title}, page ${activePage}`} src={`${signedUrl}#page=${activePage}&view=FitH`} />}
             {document.status === 'ready' && isPdf && !signedUrl && <div className="source-empty"><p>The private preview could not be opened.</p></div>}
             {document.status === 'ready' && !isPdf && <article className="text-source"><span>Page {activePage}</span><p>{sourcePage?.content || 'No extracted text appears on this page.'}</p></article>}

@@ -25,7 +25,7 @@ The reader creates a useful first-pass brief, verifies important claims against 
 - [x] Page-level citations connect claims to uploaded documents.
 - [x] Document controls let users delete private files and saved workspace data.
 - [x] Extraction coverage identifies PDFs that contain scanned pages.
-- [ ] OCR will make fully scanned PDFs searchable in Phase 3.
+- [x] OCR makes printed English text in scanned PDFs searchable while reporting incomplete recovery.
 
 ## Phase 1: Reliable text workflow
 
@@ -65,4 +65,4 @@ Acceptance criteria:
 - [x] The system records prompt versions and model metadata.
 - [x] Dashboards report failures, latency, token usage, and cost.
 - [x] End-to-end tests cover authentication boundaries, upload, processing, cited brief generation, sharing, export, revocation, and deletion.
-- [ ] OCR extracts text from fully scanned PDFs.
+- [x] OCR extracts printed English text from scanned PDFs and preserves page-level citations.

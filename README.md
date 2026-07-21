@@ -57,7 +57,7 @@ The frontend runs on Vercel. The Express API runs on Render. Docker Compose runs
 | AI provider | Anthropic Messages API |
 | Auth, database, storage | Supabase Auth, Postgres, pgvector, Storage |
 | Embeddings | Supabase Edge Runtime `gte-small` |
-| Tests | Node test runner, Vitest, Testing Library |
+| Tests | Node test runner, Vitest, Testing Library, Playwright |
 | Delivery | Docker, GitHub Actions, Vercel, Render |
 
 ## Local setup
@@ -185,6 +185,30 @@ cd backend && npm test
 cd backend && npm run eval
 cd ../frontend && npm test && npm run build
 ```
+
+### Production lifecycle test
+
+The Playwright suite checks the private-workspace boundary and runs the complete document lifecycle against a deployed environment: upload, processing, cited brief generation, export, public sharing, revocation, and deletion. It creates a temporary confirmed Supabase user for each run and removes that user's files and records during teardown.
+
+Keep this test separate from the fast pull-request checks because it calls the live worker and AI provider.
+
+```bash
+cd frontend
+cp .env.e2e.example .env.e2e.local
+npx playwright install chromium
+npm run test:e2e
+```
+
+Set `E2E_BASE_URL` to the deployed frontend. Add the same Supabase project URL, publishable key, and service-role key used by that deployment. Never commit `.env.e2e.local` or expose the service-role key to browser code.
+
+CI can install Chromium and run the suite with repository secrets:
+
+```bash
+npx playwright install --with-deps chromium
+npm run test:e2e:ci
+```
+
+Provide `E2E_BASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` as protected CI environment variables. Run this command on a scheduled or manually approved production-smoke job.
 
 ## Delivery roadmap
 

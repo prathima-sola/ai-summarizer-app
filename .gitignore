@@ -5,11 +5,15 @@ supabase/.temp/
 # Environment files
 **/.env
 **/.env.local
+**/.env.*.local
 !**/.env.example
 
 # Build and test output
 frontend/build/
 frontend/dist/
+frontend/.playwright/
+frontend/playwright-report/
+frontend/test-results/
 coverage/
 *.log
 

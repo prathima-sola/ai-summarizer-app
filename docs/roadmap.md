@@ -64,5 +64,5 @@ Acceptance criteria:
 - [x] An evaluation suite measures faithfulness, citation correctness, coverage, latency, and cost.
 - [x] The system records prompt versions and model metadata.
 - [x] Dashboards report failures, latency, token usage, and cost.
-- [ ] End-to-end tests cover upload through export and deletion.
+- [x] End-to-end tests cover authentication boundaries, upload, processing, cited brief generation, sharing, export, revocation, and deletion.
 - [ ] OCR extracts text from fully scanned PDFs.

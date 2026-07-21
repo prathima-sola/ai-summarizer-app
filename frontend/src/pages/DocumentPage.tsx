@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { API_URL } from '../lib/api';
 import { supabase } from '../lib/supabase';
@@ -32,6 +32,7 @@ function CitationButtons({ citations, onSelect }: { citations: Citation[]; onSel
 
 export function DocumentPage() {
   const { documentId = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { session } = useAuth();
   const [document, setDocument] = useState<DocumentRow | null>(null);
@@ -40,7 +41,8 @@ export function DocumentPage() {
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [conversationId, setConversationId] = useState<string>();
   const [signedUrl, setSignedUrl] = useState('');
-  const [activePage, setActivePage] = useState(1);
+  const requestedPage = Number(searchParams.get('page'));
+  const [activePage, setActivePage] = useState(Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('brief');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

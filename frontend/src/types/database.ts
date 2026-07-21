@@ -21,6 +21,20 @@ export type DocumentRow = {
 };
 
 export type Citation = { page_number: number; quote: string };
+export type ComparisonCitation = Citation & { document_id: string };
+
+export type StructuredComparison = {
+  title: string;
+  overview: string;
+  changes: Array<{
+    change_type: 'added' | 'removed' | 'changed' | 'unchanged';
+    heading: string;
+    explanation: string;
+    significance: string;
+    citations: ComparisonCitation[];
+  }>;
+  uncertainties: string[];
+};
 
 export type StructuredBrief = {
   brief_title: string;
@@ -95,6 +109,22 @@ export type ProcessingJobRow = {
   updated_at: string;
 };
 
+export type ComparisonRow = {
+  id: string;
+  user_id: string;
+  base_document_id: string;
+  target_document_id: string;
+  title: string;
+  structured_content: StructuredComparison;
+  citations: ComparisonCitation[];
+  model: string;
+  prompt_version: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  latency_ms: number | null;
+  created_at: string;
+};
+
 type Table<Row, Insert = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
@@ -128,6 +158,7 @@ export type Database = {
       conversations: Table<ConversationRow>;
       messages: Table<MessageRow>;
       processing_jobs: Table<ProcessingJobRow>;
+      comparisons: Table<ComparisonRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

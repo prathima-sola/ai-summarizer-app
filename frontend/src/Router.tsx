@@ -4,6 +4,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DocumentPage } from './pages/DocumentPage';
+import { ComparePage } from './pages/ComparePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 export function AppRouter() {
@@ -14,6 +15,8 @@ export function AppRouter() {
       <Route path="/auth/reset" element={<ResetPasswordPage />} />
       <Route path="/app" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/app/documents/:documentId" element={<ProtectedRoute><DocumentPage /></ProtectedRoute>} />
+      <Route path="/app/compare" element={<ProtectedRoute><ComparePage /></ProtectedRoute>} />
+      <Route path="/app/comparisons/:comparisonId" element={<ProtectedRoute><ComparePage /></ProtectedRoute>} />
       <Route path="*" element={<App />} />
     </Routes>
   );

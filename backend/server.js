@@ -5,6 +5,7 @@ dotenv.config({ path: '.env' });
 const { createApp } = require('./src/app');
 const { createRequireAuth } = require('./src/auth');
 const { createDocumentAI } = require('./src/documents/document-ai');
+const { createComparisonAI } = require('./src/documents/comparison-ai');
 const { createDocumentService } = require('./src/documents/document-service');
 const { createDocumentWorker } = require('./src/documents/worker-runtime');
 const { createAnthropicSummarizer } = require('./src/summarizer');
@@ -15,10 +16,11 @@ const summarize = createAnthropicSummarizer();
 const supabaseAdmin = createSupabaseAdmin();
 const requireAuth = createRequireAuth(supabaseAdmin);
 const documentAI = createDocumentAI(supabaseAdmin);
+const comparisonAI = createComparisonAI(supabaseAdmin);
 const documentService = createDocumentService(supabaseAdmin, {
   generateSummaryJob: documentAI?.generateSummaryJob,
 });
-const app = createApp({ summarize, requireAuth, documentService, documentAI });
+const app = createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI });
 const documentWorker = process.env.RUN_DOCUMENT_WORKER === 'true' && documentService
   ? createDocumentWorker(documentService, {
     pollInterval: Number(process.env.WORKER_POLL_INTERVAL_MS || 2_000),

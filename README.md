@@ -10,6 +10,7 @@ Live preview: https://ai-summarizer-app-zeta.vercel.app
 2. Choose an executive brief, key points, study notes, or action items.
 3. Set the detail level and reader expertise.
 4. Generate, review, copy, download, or revisit the brief.
+5. Compare an earlier and later document to review cited additions, removals, and changed claims.
 
 The public text preview does not require an account. It supports source text up to 20,000 characters and stores recent results only in browser memory. The authenticated workspace accepts private PDF, DOCX, Markdown, and text files up to 15 MB.
 
@@ -37,6 +38,7 @@ The frontend runs on Vercel. The Express API runs on Render. Docker Compose runs
 - The API accepts explicit mode, length, and audience values instead of arbitrary prompt text.
 - The prompt treats source material as untrusted content and instructs the model not to follow embedded instructions.
 - The server checks cited pages and quotations against the source before it saves AI output.
+- Version comparisons keep earlier and later sources separate and require changed findings to cite both documents.
 - Row-level security scopes documents, pages, briefs, conversations, messages, and jobs to their owners.
 - Private Storage uses user-scoped paths and one-hour signed preview URLs.
 - A polling worker moves parsing, embedding, and document summaries outside API request lifecycles. It can run as a dedicated process or inside the API container for free-tier deployments.
@@ -165,6 +167,7 @@ The health endpoint returns the API status without calling the AI provider.
 - `POST /api/documents/:documentId/ingest` queues parsing and indexing.
 - `POST /api/documents/:documentId/summaries` queues a structured cited brief.
 - `POST /api/documents/:documentId/questions` returns and saves a source-grounded answer.
+- `POST /api/comparisons` creates and saves a cited comparison between two owned documents.
 
 Each document route requires `Authorization: Bearer <user-jwt>` and verifies document ownership.
 
@@ -179,6 +182,6 @@ cd ../frontend && npm test && npm run build
 
 - Phase 1 establishes a reliable text workflow, typed frontend, hardened API, tests, CI, and a production interface.
 - Phase 2 delivers file ingestion, background jobs, authentication, durable workspaces, verified page citations, and document Q&A.
-- Phase 3 adds OCR, multi-document comparison, quality evaluations, cost telemetry, shareable briefs, and deeper observability.
+- Phase 3 adds document comparison, OCR, quality evaluations, cost telemetry, shareable briefs, and deeper observability. Cited document comparison is complete.
 
 See [docs/roadmap.md](docs/roadmap.md) for acceptance criteria and implementation order.

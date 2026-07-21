@@ -59,7 +59,7 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- [ ] Users can compare multiple document versions.
+- [x] Users can compare multiple document versions.
 - [ ] Users can create read-only share links.
 - [ ] An evaluation suite measures faithfulness, citation correctness, coverage, latency, and cost.
 - [ ] The system records prompt versions and model metadata.

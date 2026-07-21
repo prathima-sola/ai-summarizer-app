@@ -42,6 +42,7 @@ export function DashboardPage() {
     return documents.filter((document) => [document.title, document.original_name, ...document.tags]
       .some((value) => value.toLowerCase().includes(normalizedQuery)));
   }, [documents, query]);
+  const readyDocumentCount = documents.filter((document) => document.status === 'ready').length;
 
   return (
     <div className="dashboard-shell">
@@ -60,7 +61,10 @@ export function DashboardPage() {
             <h1>Continue reading where you left off.</h1>
             <p>Upload a source, generate a cited brief, and ask questions without losing the connection to the original pages.</p>
           </div>
-          {session && <DocumentUploader session={session} onUploaded={onUploaded} />}
+          <div className="dashboard-actions">
+            {readyDocumentCount >= 2 && <Link className="compare-link" to="/app/compare">Compare two documents</Link>}
+            {session && <DocumentUploader session={session} onUploaded={onUploaded} />}
+          </div>
         </section>
 
         <section className="document-section" aria-labelledby="documents-title">

@@ -133,3 +133,42 @@ test('queues ingestion only for an authenticated document owner', async () => {
   assert.equal(received.documentId, '22222222-2222-4222-8222-222222222222');
   assert.equal(body.job.status, 'queued');
 });
+
+test('creates a comparison for two authenticated document IDs', async () => {
+  let received;
+  const requireAuth = (req, res, next) => {
+    req.user = { id: '11111111-1111-4111-8111-111111111111' };
+    next();
+  };
+  const comparisonAI = {
+    async compareDocuments(input) {
+      received = input;
+      return { status: 201, comparison: { id: 'comparison-1', title: 'Version changes' } };
+    },
+  };
+  const baseUrl = await startApp(undefined, { requireAuth, comparisonAI });
+  const response = await fetch(`${baseUrl}/api/comparisons`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      baseDocumentId: '22222222-2222-4222-8222-222222222222',
+      targetDocumentId: '33333333-3333-4333-8333-333333333333',
+    }),
+  });
+  assert.equal(response.status, 201);
+  assert.equal(received.userId, '11111111-1111-4111-8111-111111111111');
+  assert.equal((await response.json()).comparison.title, 'Version changes');
+});
+
+test('rejects comparing a document with itself', async () => {
+  const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
+  const comparisonAI = { async compareDocuments() { throw new Error('must not run'); } };
+  const baseUrl = await startApp(undefined, { requireAuth, comparisonAI });
+  const documentId = '22222222-2222-4222-8222-222222222222';
+  const response = await fetch(`${baseUrl}/api/comparisons`, {
+    method: 'POST', headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ baseDocumentId: documentId, targetDocumentId: documentId }),
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'Choose two different documents.');
+});

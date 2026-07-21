@@ -54,7 +54,7 @@ function validateSummaryRequest(body) {
   return { value: { text, mode, length, audience } };
 }
 
-function createApp({ summarize, requireAuth, documentService, documentAI, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
+function createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
   if (typeof summarize !== 'function') {
     throw new TypeError('createApp requires a summarize function.');
   }
@@ -174,6 +174,23 @@ function createApp({ summarize, requireAuth, documentService, documentAI, allowe
         });
         if (result.error) return res.status(result.status).json({ error: result.error });
         return res.status(result.status).json({ conversationId: result.conversationId, answer: result.answer });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.post('/api/comparisons', limiter, requireAuth, async (req, res, next) => {
+      if (!comparisonAI) return res.status(503).json({ error: 'Document comparison has not been configured.' });
+      const baseDocumentId = typeof req.body.baseDocumentId === 'string' ? req.body.baseDocumentId : '';
+      const targetDocumentId = typeof req.body.targetDocumentId === 'string' ? req.body.targetDocumentId : '';
+      if (!UUID_PATTERN.test(baseDocumentId) || !UUID_PATTERN.test(targetDocumentId)) {
+        return res.status(400).json({ error: 'Choose two valid documents.' });
+      }
+      if (baseDocumentId === targetDocumentId) return res.status(400).json({ error: 'Choose two different documents.' });
+      try {
+        const result = await comparisonAI.compareDocuments({ baseDocumentId, targetDocumentId, userId: req.user.id });
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        return res.status(result.status).json({ comparison: result.comparison });
       } catch (error) {
         return next(error);
       }

@@ -213,7 +213,7 @@ export function ComparePage() {
             <EvidenceLinks citations={change.citations} documents={documentMap} />
           </article>)}
         </div>
-        {comparison.structured_content.uncertainties.length > 0 && <aside className="comparison-uncertainties"><h3>Limits of this comparison</h3><ul>{comparison.structured_content.uncertainties.map((item, index) => <li key={index}>{item}</li>)}</ul></aside>}
+        {(comparison.structured_content.uncertainties || []).length > 0 && <aside className="comparison-uncertainties"><h3>Limits of this comparison</h3><ul>{comparison.structured_content.uncertainties.map((item, index) => <li key={index}>{item}</li>)}</ul></aside>}
       </section>}
 
       {recentComparisons.length > 0 && <section className="comparison-history"><h2>Saved comparisons</h2><div>{recentComparisons.map((item) => <Link key={item.id} to={`/app/comparisons/${item.id}`}><strong>{item.title}</strong><span>{new Date(item.created_at).toLocaleDateString()}</span></Link>)}</div></section>}

@@ -45,6 +45,7 @@ function validateComparison(comparison, chunksByDocument, baseDocumentId, target
   if (!Array.isArray(comparison.changes) || comparison.changes.length === 0) {
     throw new Error('The model returned a comparison without findings.');
   }
+  if (!Array.isArray(comparison.uncertainties)) comparison.uncertainties = [];
 
   const allowedDocuments = new Set([baseDocumentId, targetDocumentId]);
   const allCitations = [];

@@ -125,6 +125,39 @@ export type ComparisonRow = {
   created_at: string;
 };
 
+export type ShareLinkMeta = {
+  id: string;
+  resourceType: 'summary' | 'comparison';
+  resourceId: string;
+  expiresAt: string;
+  createdAt: string;
+  viewCount: number;
+  lastViewedAt: string | null;
+};
+
+export type PublicSharePayload = {
+  expiresAt: string;
+  resource: ({
+    type: 'summary';
+    title: string;
+    documentTitle: string;
+    mode: string;
+    detailLevel: string;
+    audience: string;
+    structuredContent: StructuredBrief;
+    citations: Citation[];
+    createdAt: string;
+  } | {
+    type: 'comparison';
+    title: string;
+    baseDocument: { id: string; title: string };
+    targetDocument: { id: string; title: string };
+    structuredContent: StructuredComparison;
+    citations: ComparisonCitation[];
+    createdAt: string;
+  });
+};
+
 type Table<Row, Insert = Partial<Row>> = {
   Row: Row;
   Insert: Insert;

@@ -5,6 +5,7 @@ import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DocumentPage } from './pages/DocumentPage';
 import { ComparePage } from './pages/ComparePage';
+import { PublicSharePage } from './pages/PublicSharePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 export function AppRouter() {
@@ -17,6 +18,7 @@ export function AppRouter() {
       <Route path="/app/documents/:documentId" element={<ProtectedRoute><DocumentPage /></ProtectedRoute>} />
       <Route path="/app/compare" element={<ProtectedRoute><ComparePage /></ProtectedRoute>} />
       <Route path="/app/comparisons/:comparisonId" element={<ProtectedRoute><ComparePage /></ProtectedRoute>} />
+      <Route path="/share/:token" element={<PublicSharePage />} />
       <Route path="*" element={<App />} />
     </Routes>
   );

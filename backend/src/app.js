@@ -54,7 +54,7 @@ function validateSummaryRequest(body) {
   return { value: { text, mode, length, audience } };
 }
 
-function createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
+function createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
   if (typeof summarize !== 'function') {
     throw new TypeError('createApp requires a summarize function.');
   }
@@ -75,7 +75,7 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
       if (!origin || origins.has(origin)) return callback(null, true);
       return callback(new Error('Origin not allowed'));
     },
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
   }));
   app.use(express.json({ limit: '128kb' }));
@@ -115,6 +115,17 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
 
   app.post('/api/summaries', limiter, handleSummary);
   app.post('/summarize', limiter, handleSummary);
+
+  app.get('/api/public/shares/:token', limiter, async (req, res, next) => {
+    if (!shareService) return res.status(503).json({ error: 'Shared briefs have not been configured.' });
+    try {
+      const result = await shareService.resolve(req.params.token);
+      if (result.error) return res.status(result.status).json({ error: result.error });
+      return res.status(result.status).json({ share: result.share });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
   if (requireAuth) {
     app.post('/api/documents/:documentId/ingest', limiter, requireAuth, async (req, res, next) => {
@@ -191,6 +202,49 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
         const result = await comparisonAI.enqueueComparison({ baseDocumentId, targetDocumentId, userId: req.user.id });
         if (result.error) return res.status(result.status).json({ error: result.error });
         return res.status(result.status).json({ job: result.job });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.get('/api/shares', limiter, requireAuth, async (req, res, next) => {
+      if (!shareService) return res.status(503).json({ error: 'Shared briefs have not been configured.' });
+      const resourceType = req.query.resourceType;
+      const resourceId = req.query.resourceId;
+      if (!['summary', 'comparison'].includes(resourceType) || !UUID_PATTERN.test(resourceId || '')) {
+        return res.status(400).json({ error: 'Choose a valid brief or comparison.' });
+      }
+      try {
+        const links = await shareService.list({ resourceType, resourceId, userId: req.user.id });
+        return res.json({ links });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.post('/api/shares', limiter, requireAuth, async (req, res, next) => {
+      if (!shareService) return res.status(503).json({ error: 'Shared briefs have not been configured.' });
+      const resourceType = req.body.resourceType;
+      const resourceId = req.body.resourceId;
+      if (!['summary', 'comparison'].includes(resourceType) || !UUID_PATTERN.test(resourceId || '')) {
+        return res.status(400).json({ error: 'Choose a valid brief or comparison.' });
+      }
+      try {
+        const result = await shareService.create({ resourceType, resourceId, userId: req.user.id });
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        return res.status(result.status).json({ link: result.link, token: result.token });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
+    app.delete('/api/shares/:shareId', limiter, requireAuth, async (req, res, next) => {
+      if (!shareService) return res.status(503).json({ error: 'Shared briefs have not been configured.' });
+      if (!UUID_PATTERN.test(req.params.shareId)) return res.status(400).json({ error: 'Provide a valid share link ID.' });
+      try {
+        const result = await shareService.revoke({ shareId: req.params.shareId, userId: req.user.id });
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        return res.status(204).end();
       } catch (error) {
         return next(error);
       }

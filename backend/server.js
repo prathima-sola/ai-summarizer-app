@@ -8,6 +8,7 @@ const { createDocumentAI } = require('./src/documents/document-ai');
 const { createComparisonAI } = require('./src/documents/comparison-ai');
 const { createDocumentService } = require('./src/documents/document-service');
 const { createDocumentWorker } = require('./src/documents/worker-runtime');
+const { createShareService } = require('./src/shares/share-service');
 const { createAnthropicSummarizer } = require('./src/summarizer');
 const { createSupabaseAdmin } = require('./src/supabase');
 
@@ -17,11 +18,12 @@ const supabaseAdmin = createSupabaseAdmin();
 const requireAuth = createRequireAuth(supabaseAdmin);
 const documentAI = createDocumentAI(supabaseAdmin);
 const comparisonAI = createComparisonAI(supabaseAdmin);
+const shareService = createShareService(supabaseAdmin);
 const documentService = createDocumentService(supabaseAdmin, {
   generateSummaryJob: documentAI?.generateSummaryJob,
   generateComparisonJob: comparisonAI?.generateComparisonJob,
 });
-const app = createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI });
+const app = createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService });
 const documentWorker = process.env.RUN_DOCUMENT_WORKER === 'true' && documentService
   ? createDocumentWorker(documentService, {
     pollInterval: Number(process.env.WORKER_POLL_INTERVAL_MS || 2_000),

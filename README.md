@@ -168,6 +168,11 @@ The health endpoint returns the API status without calling the AI provider.
 - `POST /api/documents/:documentId/summaries` queues a structured cited brief.
 - `POST /api/documents/:documentId/questions` returns and saves a source-grounded answer.
 - `POST /api/comparisons` creates and saves a cited comparison between two owned documents.
+- `GET /api/shares` lists active link metadata for one owned brief or comparison.
+- `POST /api/shares` replaces and returns a 30-day read-only link for one owned brief or comparison.
+- `DELETE /api/shares/:shareId` revokes an owned link immediately.
+
+`GET /api/public/shares/:token` returns the limited public payload for an active capability link. It does not return source files, extracted pages, account data, or model telemetry.
 
 Each document route requires `Authorization: Bearer <user-jwt>` and verifies document ownership.
 
@@ -182,6 +187,6 @@ cd ../frontend && npm test && npm run build
 
 - Phase 1 establishes a reliable text workflow, typed frontend, hardened API, tests, CI, and a production interface.
 - Phase 2 delivers file ingestion, background jobs, authentication, durable workspaces, verified page citations, and document Q&A.
-- Phase 3 adds document comparison, OCR, quality evaluations, cost telemetry, shareable briefs, and deeper observability. Cited document comparison is complete.
+- Phase 3 adds document comparison, OCR, quality evaluations, cost telemetry, shareable briefs, and deeper observability. Cited comparison and revocable read-only sharing are complete.
 
 See [docs/roadmap.md](docs/roadmap.md) for acceptance criteria and implementation order.

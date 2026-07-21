@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { API_URL } from '../lib/api';
 import { supabase } from '../lib/supabase';
+import { ShareControl } from '../components/ShareControl';
 import type {
   Citation,
   DocumentPageRow,
@@ -296,7 +297,7 @@ export function DocumentPage() {
 
                 {!brief && <div className="insight-empty"><span>Source-grounded output</span><h1>Turn this document into a brief you can verify.</h1><p>Briefly links key points to the source pages so you can check context before using them.</p></div>}
                 {brief && <article className="brief-output">
-                  <div className="brief-meta"><span>{latestSummary.mode.replace('-', ' ')}</span><div><button type="button" onClick={copyBrief}>Copy brief</button><button type="button" onClick={downloadBrief}>Download brief</button><time>{new Date(latestSummary.created_at).toLocaleString()}</time></div></div>
+                  <div className="brief-meta"><span>{latestSummary.mode.replace('-', ' ')}</span><div><button type="button" onClick={copyBrief}>Copy brief</button><button type="button" onClick={downloadBrief}>Download brief</button><ShareControl resourceType="summary" resourceId={latestSummary.id} /><time>{new Date(latestSummary.created_at).toLocaleString()}</time></div></div>
                   <h1>{brief.brief_title}</h1>
                   <p className="brief-overview">{brief.overview}</p>
                   {brief.sections.map((section, sectionIndex) => <section key={`${section.heading}-${sectionIndex}`}><h2>{section.heading}</h2><ul>{section.points.map((point, pointIndex) => <li key={pointIndex}><span>{point.text}</span><CitationButtons citations={point.page_numbers.map((page) => ({ page_number: page, quote: '' }))} onSelect={selectSourcePage} /></li>)}</ul></section>)}

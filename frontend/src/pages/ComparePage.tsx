@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { API_URL } from '../lib/api';
 import { supabase } from '../lib/supabase';
+import { ShareControl } from '../components/ShareControl';
 import type { ComparisonCitation, ComparisonRow, DocumentRow, ProcessingJobRow } from '../types/database';
 
 async function readApiResponse<T>(response: Response): Promise<T & { error?: string }> {
@@ -200,7 +201,7 @@ export function ComparePage() {
       {baseDocumentId === targetDocumentId && documents.length >= 2 && <p className="comparison-guidance">Choose two different documents to start comparison.</p>}
 
       {comparison && <section className="comparison-result">
-        <div className="comparison-result-meta"><span>Earlier: {baseDocument?.title}</span><span>Later: {targetDocument?.title}</span><time>{new Date(comparison.created_at).toLocaleString()}</time></div>
+        <div className="comparison-result-meta"><span>Earlier: {baseDocument?.title}</span><span>Later: {targetDocument?.title}</span><ShareControl resourceType="comparison" resourceId={comparison.id} /><time>{new Date(comparison.created_at).toLocaleString()}</time></div>
         <h2>{comparison.structured_content.title}</h2>
         <p className="comparison-overview">{comparison.structured_content.overview}</p>
         <div className="change-list">

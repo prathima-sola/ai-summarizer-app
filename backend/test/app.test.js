@@ -172,3 +172,55 @@ test('rejects comparing a document with itself', async () => {
   assert.equal(response.status, 400);
   assert.equal((await response.json()).error, 'Choose two different documents.');
 });
+
+test('opens a shared brief without authentication', async () => {
+  let receivedToken;
+  const shareService = {
+    async resolve(token) {
+      receivedToken = token;
+      return { status: 200, share: { expiresAt: '2026-08-20T00:00:00.000Z', resource: { type: 'summary', title: 'Shared findings' } } };
+    },
+  };
+  const baseUrl = await startApp(undefined, { shareService });
+  const token = 'a'.repeat(43);
+  const response = await fetch(`${baseUrl}/api/public/shares/${token}`);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(receivedToken, token);
+  assert.equal(body.share.resource.title, 'Shared findings');
+});
+
+test('creates a read-only link for an authenticated owner', async () => {
+  let received;
+  const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
+  const shareService = {
+    async create(input) {
+      received = input;
+      return { status: 201, link: { id: '44444444-4444-4444-8444-444444444444' }, token: 'b'.repeat(43) };
+    },
+  };
+  const baseUrl = await startApp(undefined, { requireAuth, shareService });
+  const response = await fetch(`${baseUrl}/api/shares`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ resourceType: 'summary', resourceId: '22222222-2222-4222-8222-222222222222' }),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 201);
+  assert.equal(received.userId, '11111111-1111-4111-8111-111111111111');
+  assert.equal(received.resourceType, 'summary');
+  assert.equal(body.token.length, 43);
+});
+
+test('revokes only an authenticated owner share link', async () => {
+  let received;
+  const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
+  const shareService = { async revoke(input) { received = input; return { status: 204 }; } };
+  const baseUrl = await startApp(undefined, { requireAuth, shareService });
+  const response = await fetch(`${baseUrl}/api/shares/44444444-4444-4444-8444-444444444444`, {
+    method: 'DELETE', headers: { authorization: 'Bearer test-token' },
+  });
+  assert.equal(response.status, 204);
+  assert.equal(received.userId, '11111111-1111-4111-8111-111111111111');
+  assert.equal(received.shareId, '44444444-4444-4444-8444-444444444444');
+});

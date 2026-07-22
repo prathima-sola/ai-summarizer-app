@@ -2,7 +2,7 @@
 
 Briefly processes private documents into cited summaries and grounded answers. It supports PDF, DOCX, Markdown, and text files.
 
-[Live app](https://ai-summarizer-app-zeta.vercel.app/) · [Sample workspace](https://ai-summarizer-app-zeta.vercel.app/demo)
+[Live app](https://ai-summarizer-app-zeta.vercel.app/)
 
 ![Briefly sample workspace](docs/screenshots/demo-workspace.png)
 
@@ -36,21 +36,6 @@ flowchart LR
 ```
 
 The frontend runs on Vercel. The Express API runs on Render. Supabase provides authentication, Postgres, pgvector, and private file storage. Docker Compose runs the same split locally.
-
-## Implementation notes
-
-- The API accepts explicit mode, length, and audience values instead of arbitrary prompt text.
-- The prompt treats source material as untrusted content and instructs the model not to follow embedded instructions.
-- The server checks cited pages and quotations against the source before it saves AI output.
-- Version comparisons keep earlier and later sources separate and require changed findings to cite both documents.
-- Row-level security scopes documents, pages, briefs, conversations, messages, and jobs to their owners.
-- Private Storage uses user-scoped paths and one-hour signed preview URLs.
-- A polling worker moves parsing, embedding, and document summaries outside API request lifecycles. It can run as a dedicated process or inside the API container for free-tier deployments.
-- The parser runs OCR only on sparse PDF pages, preserves their original page numbers, and reports OCR coverage and mean confidence.
-- The API validates request size and options before it calls the model provider.
-- The server returns safe client errors and logs internal provider details with a request ID.
-- CI runs backend tests, frontend tests, deterministic evaluation fixtures, TypeScript checks, a production build, and dependency audits.
-- Scheduled checks probe frontend availability and API dependency readiness.
 
 ## Stack
 
@@ -131,29 +116,13 @@ docker compose --profile documents up --build
 
 ## Environment variables
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Yes | Authenticates model requests |
-| `ANTHROPIC_MODEL` | No | Overrides the configured model |
-| `ALLOWED_ORIGINS` | No | Defines comma-separated browser origins |
-| `RATE_LIMIT_MAX` | No | Sets requests per 15-minute window |
-| `PORT` | No | Sets the API port, which defaults to 3001 |
-| `VITE_API_URL` | No | Overrides the frontend API base URL at build time |
-| `VITE_SUPABASE_URL` | Workspace | Connects the browser to Supabase |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Workspace | Authenticates public browser requests that RLS checks |
-| `SUPABASE_URL` | Workspace | Connects the API and worker to Supabase |
-| `SUPABASE_PUBLISHABLE_KEY` | Workspace | Lets the API validate user sessions |
-| `SUPABASE_SERVICE_ROLE_KEY` | Workspace | Lets the trusted worker process owned documents |
-| `RUN_DOCUMENT_WORKER` | No | Runs the queue processor inside the API container when set to `true` |
-| `WORKER_POLL_INTERVAL_MS` | No | Controls how often an idle worker checks the queue |
-| `OCR_MAX_PAGES` | No | Caps OCR work per PDF, which defaults to 25 scanned pages |
-| `OCR_RENDER_SCALE` | No | Controls scanned-page rendering resolution, which defaults to 2 |
+Copy the provided example files and add these required values:
 
-### Scanned PDF support
+- `ANTHROPIC_API_KEY` in `backend/.env`
+- Supabase URL and publishable key in both environment files
+- Supabase service-role key in `backend/.env` only
 
-Briefly first extracts embedded PDF text because native extraction is faster and more accurate. It renders and OCRs only pages with fewer than 20 readable characters. The document workspace reports whether OCR completed, recovered only part of the PDF, or could not recover readable text.
-
-The bundled model supports printed English text. Handwriting, damaged scans, unusual fonts, and non-English documents can produce incomplete results. OCR processes at most 25 pages by default to protect the free Render worker from unbounded CPU and memory use. Set `OCR_MAX_PAGES` for a larger worker when needed.
+The example files document optional settings such as allowed origins, rate limits, worker polling, and OCR limits. Never expose the service-role key through a `VITE_` variable.
 
 ## API
 
@@ -194,7 +163,7 @@ The readiness endpoint checks database access and reports the configured worker 
 
 Each document route requires `Authorization: Bearer <user-jwt>` and verifies document ownership.
 
-## Verification
+## Tests
 
 ```bash
 cd backend && npm test
@@ -202,11 +171,7 @@ cd backend && npm run eval
 cd ../frontend && npm test && npm run build
 ```
 
-### Production lifecycle test
-
-The Playwright suite checks the private-workspace boundary and runs the complete document lifecycle against a deployed environment: upload, processing, cited brief generation, export, public sharing, revocation, and deletion. It creates a temporary confirmed Supabase user for each run and removes that user's files and records during teardown.
-
-Keep this test separate from the fast pull-request checks because it calls the live worker and AI provider.
+Run the end-to-end suite separately because it uses the configured Supabase project and AI provider:
 
 ```bash
 cd frontend
@@ -215,13 +180,4 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Set `E2E_BASE_URL` to the deployed frontend. Add the same Supabase project URL, publishable key, and service-role key used by that deployment. Never commit `.env.e2e.local` or expose the service-role key to browser code.
-
-CI can install Chromium and run the suite with repository secrets:
-
-```bash
-npx playwright install --with-deps chromium
-npm run test:e2e:ci
-```
-
-Provide `E2E_BASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` as protected CI environment variables. Run this command only from the production-smoke workflow.
+Use `frontend/.env.e2e.example` as the template. The suite deletes its temporary user and test data during teardown.

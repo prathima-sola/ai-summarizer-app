@@ -24,6 +24,10 @@ nav a:hover, footer > a:hover { color: var(--ink); }
 .eyebrow > span { background: var(--accent); border-radius: 99px; height: 7px; width: 7px; }
 .hero h1 { font-family: var(--font-display); font-size: clamp(48px, 7vw, 78px); font-weight: 540; letter-spacing: -.055em; line-height: .98; margin: 20px 0 24px; }
 .hero > p { color: var(--muted); font-size: 18px; line-height: 1.65; margin: 0 auto; max-width: 690px; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 28px; }
+.hero-actions a { border: 1px solid var(--line-strong); border-radius: 10px; color: var(--ink); font-size: 13px; font-weight: 750; padding: 12px 17px; text-decoration: none; }
+.hero-actions a:first-child { background: var(--ink); border-color: var(--ink); color: #fff; }
+.hero-actions a:hover { border-color: var(--accent-dark); }
 .trust-row { align-items: center; display: flex; flex-wrap: wrap; gap: 0; justify-content: center; margin-top: 30px; }
 .trust-row span { align-items: center; color: var(--muted); display: inline-flex; font-size: 13px; font-weight: 600; }
 .trust-row span::before { background: var(--success); border-radius: 50%; content: ''; height: 5px; margin: 0 10px 0 18px; width: 5px; }
@@ -158,6 +162,7 @@ footer p { color: var(--muted-light); font-size: 11px; }
   .hero { padding: 60px 20px 38px; }
   .hero h1 { font-size: 46px; }
   .hero > p { font-size: 16px; }
+  .hero-actions { align-items: stretch; flex-direction: column; }
   .trust-row { align-items: flex-start; flex-direction: column; gap: 8px; margin-left: auto; margin-right: auto; width: max-content; }
   .trust-row span::before { margin-left: 0; }
   .workspace { padding: 0 14px 70px; }

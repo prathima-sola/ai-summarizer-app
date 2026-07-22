@@ -10,6 +10,7 @@ const ComparePage = lazy(() => import('./pages/ComparePage').then((module) => ({
 const PublicSharePage = lazy(() => import('./pages/PublicSharePage').then((module) => ({ default: module.PublicSharePage })));
 const QualityPage = lazy(() => import('./pages/QualityPage').then((module) => ({ default: module.QualityPage })));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })));
+const DemoWorkspacePage = lazy(() => import('./pages/DemoWorkspacePage').then((module) => ({ default: module.DemoWorkspacePage })));
 
 function RouteFallback() {
   return <main className="route-loader"><span /><p>Opening Briefly</p></main>;
@@ -22,6 +23,7 @@ export function AppRouter() {
         <Route path="/" element={<App />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/reset" element={<ResetPasswordPage />} />
+        <Route path="/demo" element={<DemoWorkspacePage />} />
         <Route path="/app" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/app/documents/:documentId" element={<ProtectedRoute><DocumentPage /></ProtectedRoute>} />
         <Route path="/app/compare" element={<ProtectedRoute><ComparePage /></ProtectedRoute>} />

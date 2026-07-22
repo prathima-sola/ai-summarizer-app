@@ -28,3 +28,5 @@ body { background: var(--canvas); margin: 0; min-width: 320px; }
 button, select, textarea { font-family: inherit; }
 button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid rgba(58, 99, 72, .3); outline-offset: 3px; }
 ::selection { background: #c9ddca; }
+.skip-link { background: var(--ink); border-radius: 0 0 8px 8px; color: #fff; font-size: 12px; font-weight: 750; left: 18px; padding: 10px 14px; position: fixed; top: -60px; transition: top .15s; z-index: 100; }
+.skip-link:focus { top: 0; }

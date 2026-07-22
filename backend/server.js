@@ -21,11 +21,18 @@ const documentAI = createDocumentAI(supabaseAdmin);
 const comparisonAI = createComparisonAI(supabaseAdmin);
 const shareService = createShareService(supabaseAdmin);
 const evaluationService = createEvaluationService(supabaseAdmin);
+const healthCheck = supabaseAdmin
+  ? async () => {
+      const { error } = await supabaseAdmin.from('documents').select('id').limit(1);
+      if (error) throw error;
+      return { database: 'ok', documentWorker: process.env.RUN_DOCUMENT_WORKER === 'true' ? 'embedded' : 'external' };
+    }
+  : null;
 const documentService = createDocumentService(supabaseAdmin, {
   generateSummaryJob: documentAI?.generateSummaryJob,
   generateComparisonJob: comparisonAI?.generateComparisonJob,
 });
-const app = createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService, evaluationService });
+const app = createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService, evaluationService, healthCheck });
 const documentWorker = process.env.RUN_DOCUMENT_WORKER === 'true' && documentService
   ? createDocumentWorker(documentService, {
     pollInterval: Number(process.env.WORKER_POLL_INTERVAL_MS || 2_000),

@@ -48,7 +48,22 @@ test('reports service health', async () => {
   const baseUrl = await startApp();
   const response = await fetch(`${baseUrl}/health`);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: 'ok', service: 'briefly-api' });
+  const body = await response.json();
+  assert.equal(body.status, 'ok');
+  assert.equal(body.service, 'briefly-api');
+  assert.equal(typeof body.uptimeSeconds, 'number');
+});
+
+test('reports dependency readiness', async () => {
+  const baseUrl = await startApp(async () => 'unused', {
+    healthCheck: async () => ({ database: 'ok', documentWorker: 'embedded' }),
+  });
+  const response = await fetch(`${baseUrl}/ready`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.status, 'ready');
+  assert.equal(body.checks.database, 'ok');
 });
 
 test('creates a configured summary', async () => {

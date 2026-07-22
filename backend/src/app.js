@@ -9,6 +9,10 @@ const AUDIENCES = new Set(['general', 'beginner', 'expert']);
 const MAX_TEXT_LENGTH = 20_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function safeLogPath(path) {
+  return path.replace(/^\/api\/public\/shares\/[^/]+$/, '/api/public/shares/:token');
+}
+
 function validateDocumentSummaryOptions(body = {}) {
   const mode = body.mode || 'executive';
   const detail = body.detail || 'balanced';
@@ -54,7 +58,7 @@ function validateSummaryRequest(body) {
   return { value: { text, mode, length, audience } };
 }
 
-function createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService, evaluationService, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
+function createApp({ summarize, requireAuth, documentService, documentAI, comparisonAI, shareService, evaluationService, healthCheck, logger = console, allowedOrigins = process.env.ALLOWED_ORIGINS } = {}) {
   if (typeof summarize !== 'function') {
     throw new TypeError('createApp requires a summarize function.');
   }
@@ -66,8 +70,23 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
   app.set('trust proxy', 1);
   app.use((req, res, next) => {
     req.requestId = req.get('x-request-id') || crypto.randomUUID();
+    req.startedAt = process.hrtime.bigint();
     res.set('x-request-id', req.requestId);
     res.set('cache-control', 'no-store');
+    res.on('finish', () => {
+      if (req.path === '/health') return;
+      const durationMs = Number(process.hrtime.bigint() - req.startedAt) / 1_000_000;
+      logger.log(JSON.stringify({
+        level: res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
+        event: 'http_request',
+        requestId: req.requestId,
+        cfRay: req.get('cf-ray') || null,
+        method: req.method,
+        path: safeLogPath(req.path),
+        status: res.statusCode,
+        durationMs: Math.round(durationMs),
+      }));
+    });
     next();
   });
   app.use(cors({
@@ -89,7 +108,30 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
   });
 
   app.get('/health', (req, res) => {
-    res.json({ status: 'ok', service: 'briefly-api' });
+    res.json({
+      status: 'ok',
+      service: 'briefly-api',
+      release: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || process.env.APP_RELEASE || 'local',
+      uptimeSeconds: Math.round(process.uptime()),
+    });
+  });
+
+  app.get('/ready', async (req, res) => {
+    if (typeof healthCheck !== 'function') {
+      return res.status(503).json({ status: 'unavailable', checks: { database: 'not_configured' } });
+    }
+    try {
+      const checks = await healthCheck();
+      return res.json({ status: 'ready', service: 'briefly-api', checks });
+    } catch (error) {
+      logger.error(JSON.stringify({
+        level: 'error',
+        event: 'readiness_failed',
+        requestId: req.requestId,
+        message: error instanceof Error ? error.message : 'Readiness check failed.',
+      }));
+      return res.status(503).json({ status: 'unavailable', checks: { database: 'failed' }, requestId: req.requestId });
+    }
   });
 
   const handleSummary = async (req, res, next) => {
@@ -283,9 +325,14 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
       ? 'The request is too large.'
       : 'The request could not be completed. Try again.';
 
-    console.error(JSON.stringify({
+    logger.error(JSON.stringify({
       level: 'error',
+      event: 'request_failed',
       requestId: req.requestId,
+      cfRay: req.get('cf-ray') || null,
+      method: req.method,
+      path: safeLogPath(req.path),
+      status,
       message: error.message,
     }));
 

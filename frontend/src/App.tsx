@@ -198,6 +198,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#workspace">Skip to brief generator</a>
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Briefly home">
           <span className="brand-mark"><SparkIcon /></span>
@@ -206,6 +207,7 @@ function App() {
         <nav aria-label="Primary navigation">
           <a href="#workspace">Workspace</a>
           <a href="#how-it-works">How it works</a>
+          <a href="/demo">View sample</a>
           <a className="github-link" href="/app">
             Open workspace
           </a>
@@ -216,7 +218,8 @@ function App() {
         <section className="hero" aria-labelledby="hero-title">
           <div className="eyebrow"><span />AI-assisted reading workspace</div>
           <h1 id="hero-title">Turn dense text into a brief you can use.</h1>
-          <p>Choose the outcome you need. Briefly extracts the signal, preserves important detail, and gives you a clean result to copy or export.</p>
+          <p>Generate cited briefs, question private documents, compare versions, and check every important claim against its source page.</p>
+          <div className="hero-actions"><a href="/demo">Explore the sample workspace</a><a href="/auth">Create a private workspace</a></div>
           <div className="trust-row" aria-label="Preview details">
             <span>No account required</span>
             <span>Up to 20,000 characters</span>

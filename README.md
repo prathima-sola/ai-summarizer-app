@@ -1,32 +1,21 @@
 # Briefly
 
-Briefly is a production-style document intelligence workspace. It turns private PDFs, DOCX files, Markdown, and text into cited briefs, grounded answers, version comparisons, and revocable read-only shares.
+Briefly processes private documents into cited summaries and grounded answers. It supports PDF, DOCX, Markdown, and text files.
 
-[Open the live app](https://ai-summarizer-app-zeta.vercel.app/) · [Explore the no-login recruiter demo](https://ai-summarizer-app-zeta.vercel.app/demo) · [Read the engineering case study](docs/portfolio-case-study.md)
+[Live app](https://ai-summarizer-app-zeta.vercel.app/) · [Sample workspace](https://ai-summarizer-app-zeta.vercel.app/demo)
 
 ![Briefly sample workspace](docs/screenshots/demo-workspace.png)
 
-## What makes this more than a summarizer
+## Features
 
-| Capability | User result | Engineering proof |
-| --- | --- | --- |
-| Verified citations | Readers jump from each claim to the supporting page and quotation | Server-side page and quote validation |
-| Document Q&A | Answers stay grounded in the uploaded source | Retrieval, ownership checks, and cited responses |
-| Version comparison | Teams see cited additions, removals, and changed claims | Separate-source comparison contract |
-| Private workspace | Each user controls documents, history, and source previews | Supabase Auth, RLS, private Storage, signed URLs |
-| Scanned PDF OCR | Image-only pages remain searchable and citable | Sparse-page OCR with page preservation and confidence reporting |
-| Revocable sharing | Colleagues review results without seeing private files | Expiring capability links with immediate revocation |
-| Quality operations | Maintainers inspect grounding, latency, failures, and cost | Deterministic evaluations, readiness checks, structured logs, CI probes |
+- Source-grounded summaries with verified page citations
+- Document Q&A and cited version comparisons
+- Private user workspaces backed by row-level security
+- OCR fallback for image-only PDF pages
+- Expiring, revocable read-only share links
+- Background processing with saved job state
 
-## Product workflow
-
-1. Add a report, article, meeting transcript, or technical note.
-2. Choose an executive brief, key points, study notes, or action items.
-3. Set the detail level and reader expertise.
-4. Generate, review, copy, download, or revisit the brief.
-5. Compare an earlier and later document to review cited additions, removals, and changed claims.
-
-The public text preview does not require an account. It supports source text up to 20,000 characters and stores recent results only in browser memory. The authenticated workspace accepts private PDF, DOCX, Markdown, and text files up to 15 MB. The worker applies local English OCR to scanned PDF pages that do not contain readable embedded text.
+The public text preview accepts up to 20,000 characters without an account. The authenticated workspace accepts files up to 15 MB.
 
 ## Architecture
 
@@ -48,7 +37,7 @@ flowchart LR
 
 The frontend runs on Vercel. The Express API runs on Render. Supabase provides authentication, Postgres, pgvector, and private file storage. Docker Compose runs the same split locally.
 
-## Engineering decisions
+## Implementation notes
 
 - The API accepts explicit mode, length, and audience values instead of arbitrary prompt text.
 - The prompt treats source material as untrusted content and instructs the model not to follow embedded instructions.
@@ -60,10 +49,8 @@ The frontend runs on Vercel. The Express API runs on Render. Supabase provides a
 - The parser runs OCR only on sparse PDF pages, preserves their original page numbers, and reports OCR coverage and mean confidence.
 - The API validates request size and options before it calls the model provider.
 - The server returns safe client errors and logs internal provider details with a request ID.
-- The frontend uses a 65-second timeout and preserves user input after errors.
-- CI runs backend integration tests, frontend component tests, TypeScript checks, and a production build.
-- Scheduled workflows probe frontend availability and API dependency readiness. A controlled smoke workflow can run the full production document lifecycle.
-- Dependabot checks application packages and GitHub Actions every month.
+- CI runs backend tests, frontend tests, deterministic evaluation fixtures, TypeScript checks, a production build, and dependency audits.
+- Scheduled checks probe frontend availability and API dependency readiness.
 
 ## Stack
 
@@ -237,19 +224,4 @@ npx playwright install --with-deps chromium
 npm run test:e2e:ci
 ```
 
-Provide `E2E_BASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` as protected CI environment variables. Run this command on a scheduled or manually approved production-smoke job.
-
-## Portfolio notes
-
-- [Engineering case study and interview talking points](docs/portfolio-case-study.md)
-- [Monitoring and incident operations](docs/operations.md)
-- [Two-minute product demo script](docs/demo-script.md)
-- [Delivery roadmap and acceptance criteria](docs/roadmap.md)
-
-## Delivery roadmap
-
-- Phase 1 establishes a reliable text workflow, typed frontend, hardened API, tests, CI, and a production interface.
-- Phase 2 delivers file ingestion, background jobs, authentication, durable workspaces, verified page citations, and document Q&A.
-- Phase 3 adds document comparison, OCR, quality evaluations, cost telemetry, shareable briefs, and deeper observability. Cited comparison, revocable sharing, and the quality dashboard are complete.
-
-See [docs/roadmap.md](docs/roadmap.md) for acceptance criteria and implementation order.
+Provide `E2E_BASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` as protected CI environment variables. Run this command only from the production-smoke workflow.

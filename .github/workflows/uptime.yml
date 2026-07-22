@@ -1,0 +1,20 @@
+name: Uptime probe
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check frontend
+        run: curl --fail-with-body --location --retry 2 --retry-delay 10 --max-time 90 https://ai-summarizer-app-zeta.vercel.app/
+      - name: Check API readiness
+        run: curl --fail-with-body --retry 2 --retry-delay 10 --max-time 90 https://ai-summarizer-backend-pxyg.onrender.com/ready
+

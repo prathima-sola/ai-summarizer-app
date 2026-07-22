@@ -133,7 +133,7 @@ export function DemoWorkspacePage() {
 
         <section className="demo-next">
           <div><span className="step-label">Try your own source</span><h2>Move from the sample to a private workspace.</h2><p>Your documents use owner-scoped storage, row-level access rules, and revocable sharing.</p></div>
-          <div><Link to="/auth">Create a private workspace</Link><a href="https://github.com/prathima-sola/ai-summarizer-app" target="_blank" rel="noreferrer">Review the implementation</a></div>
+          <div><Link to="/auth">Create a private workspace</Link></div>
         </section>
       </main>
     </div>

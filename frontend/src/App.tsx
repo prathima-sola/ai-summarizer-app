@@ -435,8 +435,7 @@ function App() {
 
       <footer>
         <a className="brand" href="#top"><span className="brand-mark"><SparkIcon /></span><span>Briefly</span></a>
-        <p>Built by Prathima Sola as a production-focused AI engineering project.</p>
-        <a href="https://github.com/prathima-sola/ai-summarizer-app" target="_blank" rel="noreferrer">Review the code</a>
+        <p>© 2026 Briefly</p>
       </footer>
     </div>
   );

@@ -44,7 +44,7 @@ export function DemoWorkspacePage() {
       <main id="demo-content">
         <section className="demo-intro" aria-labelledby="demo-title">
           <div>
-            <span className="step-label">Recruiter demo · no account required</span>
+            <span className="step-label">Just a demo</span>
             <h1 id="demo-title">Inspect the complete grounded-reading workflow.</h1>
             <p>This sample uses committed product data. Explore the source, cited brief, document Q&amp;A, and evidence ledger without uploading a file or calling the AI provider.</p>
           </div>

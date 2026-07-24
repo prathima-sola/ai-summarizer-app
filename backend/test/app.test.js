@@ -123,6 +123,41 @@ test('rejects malformed document AI identifiers before calling the service', asy
   assert.equal((await response.json()).error, 'Provide a valid document ID.');
 });
 
+test('reports document question usage for the signed-in owner', async () => {
+  const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
+  const usage = { limit: 5, used: 2, remaining: 3, resetAt: '2026-07-24T00:00:00.000Z' };
+  const documentAI = {
+    async getQuestionUsage(input) {
+      assert.equal(input.documentId, '22222222-2222-4222-8222-222222222222');
+      assert.equal(input.userId, '11111111-1111-4111-8111-111111111111');
+      return { status: 200, usage };
+    },
+  };
+  const baseUrl = await startApp(undefined, { requireAuth, documentAI });
+  const response = await fetch(`${baseUrl}/api/documents/22222222-2222-4222-8222-222222222222/questions/usage`, {
+    headers: { authorization: 'Bearer test-token' },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).usage, usage);
+});
+
+test('rejects oversized document questions before calling the model service', async () => {
+  const requireAuth = (req, res, next) => { req.user = { id: '11111111-1111-4111-8111-111111111111' }; next(); };
+  const documentAI = {
+    async answerQuestion() { throw new Error('must not run'); },
+  };
+  const baseUrl = await startApp(undefined, { requireAuth, documentAI });
+  const response = await fetch(`${baseUrl}/api/documents/22222222-2222-4222-8222-222222222222/questions`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ question: 'x'.repeat(501) }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'Ask a question between 3 and 500 characters.');
+});
+
 test('queues ingestion only for an authenticated document owner', async () => {
   let received;
   const requireAuth = (req, res, next) => {

@@ -15,6 +15,7 @@ import type {
 
 type WorkspaceTab = 'brief' | 'ask' | 'evidence';
 type SummaryOptions = { mode: string; detail: string; audience: string };
+type QuestionUsage = { limit: number; used: number; remaining: number; resetAt: string };
 
 async function readApiResponse<T>(response: Response): Promise<T & { error?: string }> {
   if (!response.headers.get('content-type')?.includes('application/json')) return {} as T & { error?: string };
@@ -63,6 +64,7 @@ export function DocumentPage() {
   const [summaryOptions, setSummaryOptions] = useState<SummaryOptions>({ mode: 'executive', detail: 'balanced', audience: 'general' });
   const [question, setQuestion] = useState('');
   const [asking, setAsking] = useState(false);
+  const [questionUsage, setQuestionUsage] = useState<QuestionUsage | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [editingMetadata, setEditingMetadata] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
@@ -101,6 +103,18 @@ export function DocumentPage() {
   }, [documentId]);
 
   useEffect(() => { loadWorkspace(true); }, [loadWorkspace]);
+
+  useEffect(() => {
+    if (!session || !documentId) return;
+    let current = true;
+    fetch(`${API_URL}/api/documents/${documentId}/questions/usage`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((response) => readApiResponse<{ usage?: QuestionUsage }>(response))
+      .then((body) => { if (current && body.usage) setQuestionUsage(body.usage); })
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, [documentId, session]);
 
   useEffect(() => {
     if (!document || !['uploading', 'queued', 'processing'].includes(document.status)) return undefined;
@@ -177,7 +191,13 @@ export function DocumentPage() {
         headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: nextQuestion, conversationId }),
       });
-      const body = await readApiResponse<{ conversationId?: string; answer?: { answer: string; citations: Citation[] } }>(response);
+      const body = await readApiResponse<{
+        conversationId?: string;
+        answer?: { answer: string; citations: Citation[] };
+        cached?: boolean;
+        usage?: QuestionUsage;
+      }>(response);
+      if (body.usage) setQuestionUsage(body.usage);
       if (!response.ok || !body.answer || !body.conversationId) throw new Error(body.error || 'Briefly could not answer that question.');
       setConversationId(body.conversationId);
       setMessages((current) => [...current, {
@@ -323,7 +343,15 @@ export function DocumentPage() {
                 {messages.map((message) => <article className={`message ${message.role}`} key={message.id}><small>{message.role === 'user' ? 'You' : 'Briefly'}</small><p>{message.content}</p><CitationButtons citations={message.citations || []} onSelect={selectSourcePage} /></article>)}
                 {asking && <article className="message assistant pending"><small>Briefly</small><p>Checking the source pages…</p></article>}
               </div>
-              <form className="question-form" onSubmit={askQuestion}><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question about this document" maxLength={2000} disabled={document.status !== 'ready' || asking} /><button type="submit" disabled={question.trim().length < 3 || asking}>Ask with source citations</button></form>
+              <form className="question-form" onSubmit={askQuestion}>
+                <div className="question-input">
+                  <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question about this document" maxLength={500} disabled={document.status !== 'ready' || asking} />
+                  <small>{questionUsage
+                    ? `${questionUsage.remaining} of ${questionUsage.limit} new questions left today. Exact repeats use the saved answer.`
+                    : 'Up to 5 new questions per document each day.'}</small>
+                </div>
+                <button type="submit" disabled={question.trim().length < 3 || asking}>{questionUsage?.remaining === 0 ? 'Check saved answers' : 'Ask with source citations'}</button>
+              </form>
             </div>}
 
             {activeTab === 'evidence' && <div className="evidence-view">

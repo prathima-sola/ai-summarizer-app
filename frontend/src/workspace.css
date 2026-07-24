@@ -170,6 +170,8 @@
 .message.assistant { background: #f2f4ef; }
 .message.pending { opacity: .65; }
 .question-form { background: rgba(253,254,251,.96); border-top: 1px solid var(--line); bottom: 0; display: grid; gap: 10px; grid-template-columns: 1fr auto; padding: 14px 18px; position: sticky; }
+.question-input { display: grid; gap: 6px; }
+.question-input small { color: var(--muted); font-size: 9px; line-height: 1.4; }
 .question-form textarea { border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font: 500 11px var(--font-body); min-height: 42px; outline: none; padding: 11px 12px; resize: none; }
 .question-form textarea:focus { border-color: var(--accent); }
 .evidence-view { padding: 42px; }

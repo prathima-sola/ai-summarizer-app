@@ -208,12 +208,27 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
       }
     });
 
+    app.get('/api/documents/:documentId/questions/usage', limiter, requireAuth, async (req, res, next) => {
+      if (!documentAI) return res.status(503).json({ error: 'Document AI has not been configured.' });
+      if (!UUID_PATTERN.test(req.params.documentId)) return res.status(400).json({ error: 'Provide a valid document ID.' });
+      try {
+        const result = await documentAI.getQuestionUsage({
+          documentId: req.params.documentId,
+          userId: req.user.id,
+        });
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        return res.status(result.status).json({ usage: result.usage });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
     app.post('/api/documents/:documentId/questions', limiter, requireAuth, async (req, res, next) => {
       if (!documentAI) return res.status(503).json({ error: 'Document AI has not been configured.' });
       if (!UUID_PATTERN.test(req.params.documentId)) return res.status(400).json({ error: 'Provide a valid document ID.' });
       const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
-      if (question.length < 3 || question.length > 2_000) {
-        return res.status(400).json({ error: 'Ask a question between 3 and 2,000 characters.' });
+      if (question.length < 3 || question.length > 500) {
+        return res.status(400).json({ error: 'Ask a question between 3 and 500 characters.' });
       }
       if (req.body.conversationId && !UUID_PATTERN.test(req.body.conversationId)) {
         return res.status(400).json({ error: 'Provide a valid conversation ID.' });
@@ -225,8 +240,13 @@ function createApp({ summarize, requireAuth, documentService, documentAI, compar
           question,
           conversationId: req.body.conversationId,
         });
-        if (result.error) return res.status(result.status).json({ error: result.error });
-        return res.status(result.status).json({ conversationId: result.conversationId, answer: result.answer });
+        if (result.error) return res.status(result.status).json({ error: result.error, usage: result.usage });
+        return res.status(result.status).json({
+          conversationId: result.conversationId,
+          answer: result.answer,
+          cached: result.cached,
+          usage: result.usage,
+        });
       } catch (error) {
         return next(error);
       }
